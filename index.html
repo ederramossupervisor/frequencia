@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <!-- LINHA MAIS IMPORTANTE DO PWA -->
+    <link rel="manifest" href="manifest.json">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Frequência</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#F09BBE">
+    <meta name="description" content="Controle de Frequência e Acompanhamento">
+    
+    <!-- Configurações para Android/iOS -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Controle de Frequência">
+    
+    <!-- Ícone Apple (Android também usa) -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    
+    <!-- Fontes -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Ícones Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS do App -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Favicon simples -->
+    <link rel="icon" href="icons/icon-32x32.png" type="image/png" sizes="32x32">
+</head>
+<body>
+        <!-- Splash Screen -->
+        <div id="splashScreen" class="splash-screen">
+            <div class="splash-content">
+                <div class="splash-logo">
+                    <img src="icons/icon-192x192.png" alt="Ícone do sistema">
+                </div>
+                <h1 class="splash-title">Controle de Frequência</h1>
+                <div class="splash-spinner">
+                    <div class="spinner-dot"></div>
+                    <div class="spinner-dot"></div>
+                    <div class="spinner-dot"></div>
+                </div>
+                <p class="splash-subtitle">Carregando...</p>
+            </div>
+        </div>
+    <!-- Container Principal -->
+    <div class="app-container">
+        <!-- Cabeçalho -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="icons/icon-192x192.png" alt="Ícone do sistema" class="logo-icon">
+                    <h1>Controle de Frequência</h1>
+                </div>
+                <div class="current-date" id="currentDate">
+                    <!-- Data será atualizada por JavaScript -->
+                </div>
+                <div class="header-actions">
+                    <button id="pendingSyncBadge" class="pending-sync-badge hidden" title="Registros pendentes de confirmação"></button>
+                    <button id="btnToggleTema" class="btn-toggle-tema" onclick="alternarTema()" title="Alternar tema claro/escuro">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Navegação por Abas -->
+            <nav class="tabs-navigation">
+                <button class="tab-btn active" data-tab="frequencia">
+                    <i class="fas fa-clock"></i>
+                    <span>Frequência</span>
+                </button>
+                <button class="tab-btn" data-tab="acompanhamento">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Acompanhamento</span>
+                </button>
+                <button class="tab-btn" data-tab="configuracoes">
+                    <i class="fas fa-cog"></i>
+                    <span>Configurações</span>
+                </button>
+            </nav>
+        </header>
+
+        <!-- Conteúdo das Abas -->
+        <main class="tab-content">
+            <!-- Aba Frequência -->
+            <section id="frequencia" class="tab-pane active">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando frequência...</p>
+                </div>
+            </section>
+
+            <!-- Aba Acompanhamento -->
+            <section id="acompanhamento" class="tab-pane">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando acompanhamento...</p>
+                </div>
+            </section>
+
+            <!-- Aba Configurações -->
+            <section id="configuracoes" class="tab-pane">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando configurações...</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Notificações -->
+        <div id="notification" class="notification hidden">
+            <span id="notificationText"></span>
+            <button class="notification-close" onclick="esconderNotificacao()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Modal Genérico -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <button class="modal-close" onclick="fecharModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+                <div class="modal-footer" id="modalFooter"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts do aplicativo -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/frequencia.js"></script>
+    <script src="js/acompanhamento.js"></script>
+    <script src="js/configuracoes.js"></script>
+    <script src="js/lunch-timer.js"></script>
+    <script src="js/app.js"></script>
+    
+    <!-- SCRIPT ÚNICO DE SERVICE WORKER - SEM LOOPING -->
+    <script>
+    // SEGURO E SIMPLES - SEM LOOPING
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ Página carregada com sucesso');
+        
+        // Atualiza data atual
+        const hoje = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dataFormatada = hoje.toLocaleDateString('pt-BR', options);
+        document.getElementById('currentDate').textContent = 
+            dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
+        
+        // Service Worker SEGURO (apenas se necessário)
+        if ('serviceWorker' in navigator && location.protocol === 'https:') {
+            setTimeout(function() {
+                navigator.serviceWorker.getRegistrations()
+                    .then(function(registrations) {
+                        // Remove qualquer SW antigo
+                        return Promise.all(registrations.map(r => r.unregister()));
+                    })
+                    .then(function() {
+                        // Registra um SW MUITO SIMPLES
+                        return navigator.serviceWorker.register('service-worker.js');
+                    })
+                    .then(function(reg) {
+                        console.log('✅ Service Worker registrado:', reg.scope);
+                    })
+                    .catch(function(err) {
+                        console.log('⚠️ Service Worker não necessário:', err.message);
+                    });
+            }, 2000); // Espera 2 segundos
+        }
+    });
+
+    // PREVINE ERROS GLOBAIS
+    window.addEventListener('error', function(e) { 
+        console.log('Erro controlado:', e.message); 
+        return true;
+    });
+    
+    window.addEventListener('unhandledrejection', function(e) { 
+        console.log('Promise controlada'); 
+        e.preventDefault(); 
+    });
+    
+    // Funções globais necessárias
+    window.mostrarNotificacao = function(texto, tipo = 'info', tempo = 5000) {
+        const notif = document.getElementById('notification');
+        const textoEl = document.getElementById('notificationText');
+        if (notif && textoEl) {
+            textoEl.textContent = texto;
+            notif.className = 'notification ' + tipo;
+            notif.classList.remove('hidden');
+            setTimeout(() => notif.classList.add('hidden'), tempo);
+        }
+    };
+    
+    window.esconderNotificacao = function() {
+        document.getElementById('notification')?.classList.add('hidden');
+    };
+    
+    window.fecharModal = function() {
+        document.getElementById('modal')?.classList.add('hidden');
+    };
+    
+    window.mudarParaAba = function(aba) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        
+        document.querySelector(`.tab-btn[data-tab="${aba}"]`)?.classList.add('active');
+        document.getElementById(aba)?.classList.add('active');
+    };
+    </script>
+    
+    <!-- BOTÃO DE INSTALAÇÃO PARA ANDROID -->
+    <div id="installButton" style="display:none; position:fixed; bottom:20px; right:20px; background:#556B2F; color:white; padding:12px 20px; border-radius:25px; z-index:10000; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold;">
+        📲 INSTALAR APP
+    </div>
+    
+    <script>
+    // BOTÃO DE INSTALAÇÃO DO PWA
+    let installPromptEvent;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        installPromptEvent = e;
+        
+        // Mostra botão após 5 segundos
+        setTimeout(() => {
+            const btn = document.getElementById('installButton');
+            if (btn && installPromptEvent) {
+                btn.style.display = 'block';
+                btn.onclick = () => {
+                    installPromptEvent.prompt();
+                    installPromptEvent.userChoice.then((choice) => {
+                        if (choice.outcome === 'accepted') {
+                            btn.innerHTML = '✅ INSTALADO!';
+                            btn.style.background = '#4CAF50';
+                            setTimeout(() => btn.style.display = 'none', 3000);
+                        }
+                        installPromptEvent = null;
+                    });
+                };
+            }
+        }, 5000);
+    });
+    
+    // Se já estiver instalado como PWA, esconde botão
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('installButton').style.display = 'none';
+    }
+    </script>
+<script>
+// INICIALIZAÇÃO DAS ABAS - CORREÇÃO
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando abas...');
+    
+    // Configura navegação por abas
+    const botoes = document.querySelectorAll('.tab-btn');
+    botoes.forEach(botao => {
+        botao.addEventListener('click', function() {
+            const abaAlvo = this.dataset.tab;
+            
+            // Remove classe active de todos
+            botoes.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            
+            // Adiciona classe active aos selecionados
+            this.classList.add('active');
+            const abaSelecionada = document.getElementById(abaAlvo);
+            if (abaSelecionada) {
+                abaSelecionada.classList.add('active');
+                
+                // Carrega o conteúdo da aba
+                carregarAba(abaAlvo);
+            }
+        });
+    });
+    
+    // Carrega a aba inicial
+    carregarAba('frequencia');
+});
+
+function carregarAba(aba) {
+    console.log('📂 Carregando aba:', aba);
+    
+    const container = document.getElementById(aba);
+    if (!container) return;
+    
+    // Remove loading
+    const loading = container.querySelector('.loading');
+    if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 300);
+    }
+    
+    // Carrega conteúdo específico da aba
+    switch(aba) {
+        case 'frequencia':
+            if (typeof initFrequencia === 'function') {
+                setTimeout(() => initFrequencia(), 100);
+            } else {
+                container.innerHTML = '<div class="card"><p>Função initFrequencia não encontrada</p></div>';
+            }
+            break;
+            
+        case 'acompanhamento':
+            if (typeof initAcompanhamento === 'function') {
+                setTimeout(() => initAcompanhamento(), 100);
+            } else {
+                container.innerHTML = '<div class="card"><p>Função initAcompanhamento não encontrada</p></div>';
+            }
+            break;
+            
+        case 'configuracoes':
+            if (typeof initConfiguracoes === 'function') {
+                setTimeout(() => initConfiguracoes(), 100);
+            } else {
+                container.innerHTML = '<div class="card"><p>Função initConfiguracoes não encontrada</p></div>';
+            }
+            break;
+    }
+}
+
+// Verifica se as funções das abas existem
+console.log('Verificando funções:', {
+    initFrequencia: typeof initFrequencia,
+    initAcompanhamento: typeof initAcompanhamento,
+    initConfiguracoes: typeof initConfiguracoes
+});
+</script>
+<script>
+// ============================================
+// OBSERVADOR DE VISIBILIDADE - CARREGA QUANDO VOCÊ OLHA
+// ============================================
+
+console.log('👁️ Iniciando observador de visibilidade...');
+
+// Cria um "olheiro" que fica observando as abas
+const observadorDeAbas = new IntersectionObserver(function(entradas) {
+    // Para cada aba que mudou de visibilidade
+    entradas.forEach(function(entrada) {
+        
+        // SE A ABA FICOU VISÍVEL (você está olhando para ela)
+        if (entrada.isIntersecting) {
+            const idDaAba = entrada.target.id;
+            console.log(`👀 Aba "${idDaAba}" está visível agora!`);
+            
+            // Pequeno delay para garantir
+            setTimeout(function() {
+                // VERIFICA SE PRECISA CARREGAR
+                const conteudoAba = entrada.target.innerHTML || '';
+                const precisaCarregar = 
+                    conteudoAba.includes('Aguarde') || 
+                    conteudoAba.includes('carregando') ||
+                    conteudoAba.trim() === '';
+                
+                if (precisaCarregar) {
+                    console.log(`⚡ Carregando conteúdo da aba "${idDaAba}"...`);
+                    carregarConteudoDaAba(idDaAba);
+                } else {
+                    console.log(`✅ Aba "${idDaAba}" já tem conteúdo`);
+                }
+            }, 300); // Espera 300ms (0.3 segundos)
+        }
+    });
+}, {
+    // CONFIGURAÇÃO DO OBSERVADOR:
+    threshold: 0.3 // Dispara quando 30% da aba estiver visível
+});
+
+// FUNÇÃO QUE CARREGA O CONTEÚDO
+function carregarConteudoDaAba(idDaAba) {
+    switch(idDaAba) {
+        case 'configuracoes':
+            if (typeof initConfiguracoes === 'function') {
+                initConfiguracoes();
+            }
+            break;
+            
+        case 'acompanhamento':
+            if (typeof initAcompanhamento === 'function') {
+                initAcompanhamento();
+            }
+            break;
+            
+        case 'frequencia':
+            if (typeof initFrequencia === 'function') {
+                initFrequencia();
+            }
+            break;
+    }
+}
+
+// INICIA A OBSERVAÇÃO DAS ABAS
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM carregado, observando abas...');
+    
+    // Pega todas as 3 abas
+    const todasAsAbas = document.querySelectorAll('.tab-pane');
+    console.log(`🔍 Encontrei ${todasAsAbas.length} abas para observar`);
+    
+    // Começa a observar cada aba
+    todasAsAbas.forEach(function(aba) {
+        observadorDeAbas.observe(aba);
+        console.log(`👁️ Observando aba: ${aba.id}`);
+    });
+});
+
+// Fallback: Se após 5 segundos ainda não carregou, força
+setTimeout(function() {
+    console.log('⏰ Fallback: Verificando abas não carregadas...');
+    
+    document.querySelectorAll('.tab-pane').forEach(function(aba) {
+        if (aba.innerHTML.includes('Aguarde') || aba.innerHTML.trim() === '') {
+            console.log(`⚡ Fallback: Forçando carga da aba ${aba.id}`);
+            carregarConteudoDaAba(aba.id);
+        }
+    });
+}, 5000); // 5 segundos
+
+console.log('✅ Observador de visibilidade configurado!');
+</script>
+</body>
+</html>

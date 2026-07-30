@@ -1,0 +1,1223 @@
+/* ============================================
+   VARIÁVEIS E RESET
+   ============================================ */
+:root {
+    /* Cores da bandeira do Espírito Santo */
+    --azul-es: #0096E1;
+    --azul-es-escuro: #0077BE;
+    --azul-es-claro: #E6F3FF;
+    --rosa-es: #F09BBE;
+    --rosa-es-claro: #FCE4EC;
+    --branco: #FFFFFF;
+    --branco-gelo: #F5F5F5;
+    --cinza-claro: #E8E8E8;
+    --cinza-medio: #CCCCCC;
+    --cinza-escuro: #666666;
+    --preto: #333333;
+    --sucesso: #4CAF50;
+    --erro: #F44336;
+    --alerta: #FF9800;
+    --sombra: rgba(0, 150, 225, 0.1);
+    
+    /* Transições */
+    --transicao-rapida: all 0.2s ease;
+    --transicao-normal: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, var(--branco-gelo) 0%, var(--azul-es-claro) 100%);
+    color: var(--preto);
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--branco);
+    box-shadow: 0 0 30px var(--sombra);
+}
+
+/* ============================================
+   CABEÇALHO
+   ============================================ */
+.app-header {
+    background: linear-gradient(135deg, var(--azul-es) 0%, var(--azul-es-escuro) 100%);
+    color: var(--branco);
+    padding: 1rem;
+    border-bottom: 3px solid var(--rosa-es);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo i {
+    font-size: 2rem;
+    color: var(--branco-gelo);
+}
+
+.logo h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.current-date {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+}
+
+/* ============================================
+   NAVEGAÇÃO POR ABAS
+   ============================================ */
+.tabs-navigation {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: none;
+}
+
+.tabs-navigation::-webkit-scrollbar {
+    display: none;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: 120px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--branco);
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    transition: var(--transicao-normal);
+    font-weight: 500;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.tab-btn.active {
+    background: var(--branco);
+    color: var(--azul-es);
+    box-shadow: 0 4px 12px rgba(0, 150, 225, 0.2);
+}
+
+.tab-btn i {
+    font-size: 1.2rem;
+}
+
+.tab-btn span {
+    font-size: 0.9rem;
+}
+
+/* ============================================
+   CONTEÚDO DAS ABAS
+   ============================================ */
+.tab-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 1rem;
+    color: var(--cinza-escuro);
+}
+
+.loading i {
+    font-size: 2.5rem;
+    color: var(--verde-musgo);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   FORMULÁRIOS E CONTROLES
+   ============================================ */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--verde-musgo-escuro);
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 2px solid var(--cinza-claro);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: var(--transicao-rapida);
+    background: var(--branco);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--azul-es);
+    box-shadow: 0 0 0 3px rgba(0, 150, 225, 0.2);
+}
+
+.form-control:hover {
+    border-color: var(--cinza-medio);
+}
+
+select.form-control {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23556B2F' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+}
+
+.btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transicao-normal);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--azul-es) 0%, var(--azul-es-escuro) 100%);
+    color: var(--branco);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--azul-es-escuro) 0%, var(--azul-es) 100%);
+}
+
+.btn-secondary {
+    background: var(--cinza-claro);
+    color: var(--preto);
+}
+
+.btn-secondary:hover {
+    background: var(--cinza-medio);
+}
+
+.btn-success {
+    background: var(--sucesso);
+    color: var(--branco);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.btn-icon {
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+}
+
+/* ============================================
+   CARTÕES E GRID
+   ============================================ */
+.card {
+    background: var(--branco);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px var(--sombra);
+    border: 1px solid var(--cinza-claro);
+    transition: var(--transicao-normal);
+}
+
+.card:hover {
+    box-shadow: 0 6px 20px rgba(85, 107, 47, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--cinza-claro);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--azul-es);
+}
+
+.card-subtitle {
+    color: var(--cinza-escuro);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* ============================================
+   NOTIFICAÇÕES
+   ============================================ */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--branco);
+    color: var(--preto);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 400px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    border-left: 4px solid var(--azul-es);
+}
+
+.notification.hidden {
+    display: none;
+}
+
+.notification.success {
+    border-left-color: var(--sucesso);
+}
+
+.notification.error {
+    border-left-color: var(--erro);
+}
+
+.notification.warning {
+    border-left-color: var(--alerta);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: var(--transicao-rapida);
+}
+
+.notification-close:hover {
+    background: var(--cinza-claro);
+    color: var(--preto);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   MODAL
+   ============================================ */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+    padding: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--branco);
+    border-radius: 12px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--cinza-claro);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--verde-musgo);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: var(--transicao-rapida);
+}
+
+.modal-close:hover {
+    background: var(--cinza-claro);
+    color: var(--preto);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--cinza-claro);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* ============================================
+   TABELAS
+   ============================================ */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.table th,
+.table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--cinza-claro);
+}
+
+.table th {
+    background: var(--branco-gelo);
+    font-weight: 600;
+    color: var(--verde-musgo-escuro);
+}
+
+.table tbody tr:hover {
+    background: var(--branco-gelo);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .logo {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .tab-btn {
+        min-width: 100px;
+        padding: 0.6rem 0.5rem;
+    }
+    
+    .tab-btn span {
+        font-size: 0.8rem;
+    }
+    
+    .tab-content {
+        padding: 1rem;
+    }
+    
+    .card {
+        padding: 1rem;
+    }
+    
+    .grid-2,
+    .grid-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        max-width: 95%;
+    }
+}
+
+@media (max-width: 480px) {
+    .tabs-navigation {
+        gap: 0.25rem;
+    }
+    
+    .tab-btn {
+        min-width: 80px;
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .tab-btn i {
+        font-size: 1rem;
+    }
+    
+    .btn {
+        padding: 0.7rem 1rem;
+    }
+}
+
+/* ============================================
+   ANIMAÇÕES ESPECIAIS
+   ============================================ */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* ============================================
+   UTILITÁRIOS
+   ============================================ */
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mt-4 { margin-top: 2rem; }
+
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mb-4 { margin-bottom: 2rem; }
+
+.p-1 { padding: 0.5rem; }
+.p-2 { padding: 1rem; }
+.p-3 { padding: 1.5rem; }
+.p-4 { padding: 2rem; }
+
+.d-flex {
+    display: flex;
+}
+
+.align-items-center {
+    align-items: center;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
+.gap-3 { gap: 1.5rem; }
+
+/* ============================================
+   ESTILOS PARA INPUTS DE HORA
+   ============================================ */
+.time-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.time-input {
+    flex: 1;
+}
+
+.time-separator {
+    color: var(--cinza-escuro);
+    font-weight: bold;
+}
+
+/* ============================================
+   BADGES E TAGS
+   ============================================ */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--sucesso);
+}
+
+.badge-warning {
+    background: rgba(255, 152, 0, 0.1);
+    color: var(--alerta);
+}
+
+.badge-error {
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--erro);
+}
+
+.badge-info {
+    background: rgba(0, 150, 225, 0.1);
+    color: var(--azul-es);
+}
+/* ESTILO PARA CAMPOS OBRIGATÓRIOS */
+.form-label span.obrigatorio {
+    color: var(--erro);
+    font-weight: bold;
+    margin-left: 3px;
+}
+
+.campo-obrigatorio {
+    border-left: 4px solid var(--erro) !important;
+    background-color: rgba(244, 67, 54, 0.05) !important;
+}
+
+.campo-obrigatorio:focus {
+    border-color: var(--erro) !important;
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1) !important;
+}
+
+/* ============================================
+   ESTILO SIMPLES PARA CAMPOS DE HORA
+   ============================================ */
+
+/* Campo de TEXTO para hora (mobile) */
+.time-simple-input {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.2rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid #0096E1;            /* ✅ Azul ES */
+    border-radius: 10px;
+    background: #FFFFFF;                  /* ✅ Branco */
+    color: #0077BE;                       /* ✅ Azul escuro ES */
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+    display: block !important;
+}
+
+.time-simple-input:focus {
+    outline: none;
+    border-color: #0096E1;                /* ✅ Azul ES */
+    box-shadow: 0 0 0 3px rgba(0, 150, 225, 0.2); /* ✅ Azul com transparência */
+    background: #FFFFFF;
+}
+
+.time-simple-input::placeholder {
+    color: var(--cinza-medio);
+    opacity: 0.7;
+}
+
+/* Apenas para MOBILE - mostra campo de texto, esconde type="time" */
+@media (max-width: 768px) {
+    input[type="time"] {
+        display: none !important;
+    }
+    
+    .time-simple-input {
+        display: block !important;
+        font-size: 1.2rem;
+        padding: 14px;
+        height: 52px;
+    }
+}
+
+/* Apenas para PC - mostra type="time", esconde campo de texto */
+@media (min-width: 769px) {
+    .time-simple-input {
+        display: none !important;
+    }
+    
+    input[type="time"] {
+        display: block !important;
+    }
+}
+
+/* Mensagem de ajuda */
+.time-help {
+    font-size: 0.85rem;
+    color: var(--cinza-escuro);
+    margin-top: 5px;
+    display: block;
+    text-align: center;
+}
+/* ============================================
+   CORREÇÃO PARA CAMPOS DE HORA MOBILE
+   ============================================ */
+
+.mobile-time-container {
+    margin-bottom: 15px;
+}
+
+.time-simple-input {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.2rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid #B8D4A3;
+    border-radius: 10px;
+    background: #F9FBF7;
+    color: #3D5229;
+    transition: all 0.3s ease;
+    letter-spacing: 1px;
+    display: block !important;
+}
+
+.time-simple-input:focus {
+    outline: none;
+    border-color: #556B2F;
+    box-shadow: 0 0 0 3px rgba(85, 107, 47, 0.2);
+    background: white;
+}
+
+.time-simple-input::placeholder {
+    color: #A5C97E;
+    opacity: 0.7;
+}
+
+/* Apenas para mobile */
+@media (max-width: 768px) {
+    .time-simple-input {
+        display: block !important;
+        height: 52px;
+        font-size: 1.3rem;
+    }
+    
+    input[type="time"] {
+        display: none !important;
+    }
+}
+
+/* Apenas para PC */
+@media (min-width: 769px) {
+    .time-simple-input {
+        display: none !important;
+    }
+    
+    input[type="time"] {
+        display: block !important;
+    }
+    
+    .mobile-time-container {
+        display: none !important;
+    }
+}
+/* ============================================
+   ESTILO PARA PLACEHOLDER (SUGESTÃO)
+   ============================================ */
+
+.time-simple-input::placeholder {
+    color: #F09BBE;                       /* ✅ Rosa ES (para dar um toque suave) */
+    opacity: 0.7;
+    font-weight: normal;
+    letter-spacing: normal;
+}
+.time-simple-input:focus::placeholder {
+    color: #0096E1;                       /* ✅ Azul ES quando focado */
+    opacity: 0.5;
+}
+
+/* Remover estilos antigos da legenda */
+.time-help {
+    display: none !important;
+}
+/* ============================================
+   SPLASH SCREEN
+   ============================================ */
+
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--azul-es) 0%, var(--azul-es-escuro) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.splash-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.splash-content {
+    text-align: center;
+    animation: splashFadeIn 0.8s ease;
+}
+
+@keyframes splashFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.splash-logo {
+    margin-bottom: 2rem;
+    animation: logoPulse 2s infinite;
+}
+
+.splash-logo i {
+    font-size: 5rem;
+    color: var(--branco);
+}
+
+@keyframes logoPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.splash-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--branco);
+    margin-bottom: 2rem;
+    letter-spacing: 1px;
+}
+
+.splash-spinner {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.spinner-dot {
+    width: 16px;
+    height: 16px;
+    background-color: var(--rosa-es); 
+    border-radius: 50%;
+    animation: spinnerBounce 1.4s infinite ease-in-out both;
+}
+
+.spinner-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.spinner-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes spinnerBounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.splash-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+/* Animação de saída */
+@keyframes splashFadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.splash-screen.fade-out {
+    animation: splashFadeOut 0.5s ease forwards;
+}
+
+/* ============================================
+   RESPONSIVIDADE DA SPLASH
+   ============================================ */
+
+@media (max-width: 768px) {
+    .splash-logo i {
+        font-size: 4rem;
+    }
+    
+    .splash-title {
+        font-size: 1.8rem;
+    }
+    
+    .splash-spinner {
+        gap: 10px;
+    }
+    
+    .spinner-dot {
+        width: 14px;
+        height: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .splash-logo i {
+        font-size: 3.5rem;
+    }
+    
+    .splash-title {
+        font-size: 1.5rem;
+    }
+    
+    .splash-subtitle {
+        font-size: 0.9rem;
+    }
+}
+/* ============================================
+   ESTILOS PARA HORAS GARRAFAIS
+   ============================================ */
+
+/* Container principal das horas */
+.horas-container {
+    padding: 1.5rem 0;
+    background: linear-gradient(135deg, rgba(85, 107, 47, 0.05) 0%, rgba(248, 252, 245, 0.8) 100%);
+    border-radius: 16px;
+    border: 2px solid rgba(85, 107, 47, 0.1);
+    margin-bottom: 1rem;
+}
+
+/* NÚMEROS GARRAFAIS - GRANDES E EM DESTAQUE */
+.horas-garrafais {
+    font-size: 4.5rem;
+    font-weight: 900;
+    color: var(--azul-es);
+    line-height: 1;
+    margin: 0.5rem 0;
+    text-shadow: 
+        2px 2px 4px rgba(0, 0, 0, 0.1),
+        0 0 20px rgba(0, 150, 225, 0.2);
+    letter-spacing: 1px;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Legenda abaixo das horas */
+.horas-legenda {
+    font-size: 1.1rem;
+    color: var(--cinza-escuro);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+}
+
+/* Informação adicional */
+.horas-info {
+    background: rgba(85, 107, 47, 0.05);
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border-left: 4px solid var(--verde-musgo);
+}
+
+.horas-info i {
+    color: var(--verde-musgo);
+    margin-right: 8px;
+}
+
+/* ============================================
+   ANIMAÇÃO PARA MUDANÇA DE HORAS
+   ============================================ */
+@keyframes horasPulse {
+    0% {
+        transform: scale(1);
+        color: var(--verde-musgo);
+    }
+    50% {
+        transform: scale(1.03);
+        color: var(--verde-musgo-claro);
+    }
+    100% {
+        transform: scale(1);
+        color: var(--verde-musgo);
+    }
+}
+
+.horas-garrafais.pulse {
+    animation: horasPulse 0.6s ease;
+}
+
+/* ============================================
+   RESPONSIVIDADE DAS HORAS GARRAFAIS
+   ============================================ */
+
+/* Tablet (768px para baixo) */
+@media (max-width: 768px) {
+    .horas-garrafais {
+        font-size: 3.5rem; /* Um pouco menor em tablets */
+    }
+    
+    .horas-legenda {
+        font-size: 1rem;
+    }
+    
+    .horas-container {
+        padding: 1rem 0;
+    }
+}
+
+/* Celular (480px para baixo) */
+@media (max-width: 480px) {
+    .horas-garrafais {
+        font-size: 2.8rem; /* Ainda grande, mas cabe no celular */
+        font-weight: 800;
+    }
+    
+    .horas-legenda {
+        font-size: 0.9rem;
+    }
+    
+    .horas-container {
+        padding: 0.8rem 0;
+        border-radius: 12px;
+    }
+}
+
+/* Telas muito pequenas (360px para baixo) */
+@media (max-width: 360px) {
+    .horas-garrafais {
+        font-size: 2.4rem;
+    }
+    
+    .horas-legenda {
+        font-size: 0.85rem;
+    }
+}
+
+/* ============================================
+   EFEITO HOVER (opcional - apenas em desktop)
+   ============================================ */
+@media (min-width: 769px) {
+    .horas-container:hover {
+        background: linear-gradient(135deg, rgba(85, 107, 47, 0.08) 0%, rgba(248, 252, 245, 0.9) 100%);
+        border-color: rgba(85, 107, 47, 0.2);
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 25px rgba(85, 107, 47, 0.1);
+    }
+    
+    .horas-container:hover .horas-garrafais {
+        text-shadow: 
+            3px 3px 6px rgba(0, 0, 0, 0.15),
+            0 0 25px rgba(85, 107, 47, 0.3);
+    }
+}
+/* ============================================
+   CORES DO ESPÍRITO SANTO - MOBILE
+   ============================================ */
+
+/* Para todos os tamanhos de tela, inclusive mobile */
+.time-simple-input {
+    border: 2px solid #0096E1 !important;      /* Azul ES */
+    background: #FFFFFF !important;             /* Branco */
+    color: #0077BE !important;                  /* Azul escuro ES */
+}
+
+.time-simple-input:focus {
+    border-color: #0096E1 !important;
+    box-shadow: 0 0 0 3px rgba(0, 150, 225, 0.2) !important;
+    background: #FFFFFF !important;
+}
+
+.time-simple-input::placeholder {
+    color: #F09BBE !important;                  /* Rosa ES */
+    opacity: 0.7 !important;
+}
+
+/* Apenas para MOBILE */
+@media (max-width: 768px) {
+    .time-simple-input {
+        border: 2px solid #0096E1 !important;
+        background: #FFFFFF !important;
+        color: #0077BE !important;
+        font-size: 1.2rem;
+        padding: 14px;
+        height: 52px;
+    }
+}
+
+/* Apenas para PC (mantém a consistência) */
+@media (min-width: 769px) {
+    .time-simple-input {
+        border: 2px solid #0096E1 !important;
+        background: #FFFFFF !important;
+        color: #0077BE !important;
+    }
+}
+/* Força a cor azul em todos os campos de formulário */
+input, select, textarea {
+    border-color: #0096E1 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: #0096E1 !important;
+    box-shadow: 0 0 0 3px rgba(0, 150, 225, 0.2) !important;
+}
+/* ============================================
+   ÍCONES DO SISTEMA (Splash e Header)
+   ============================================ */
+
+/* Ícone da splash screen */
+.splash-logo img {
+    width: 130px;          /* tamanho desejado */
+    height: 130px;
+    object-fit: contain;   /* mantém a proporção, sem distorcer */
+    display: block;
+    margin: 0 auto;        /* centraliza */
+}
+
+/* Ícone do header (cabeçalho) */
+.logo-icon {
+    width: 40px;           /* menor, para caber no header */
+    height: 40px;
+    object-fit: contain;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Ajuste do layout do logo para alinhar imagem e texto */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;             /* espaçamento entre ícone e título */
+}
