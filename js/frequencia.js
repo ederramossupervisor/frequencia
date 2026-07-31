@@ -80,19 +80,29 @@ function carregarInterfaceFrequencia() {
                         </div>
                         <div class="card-body">
                             <div class="form-group">
-                                <label class="form-label" for="entradaManha">
-                                    <i class="fas fa-sign-in-alt"></i>
-                                    Entrada
-                                </label>
+                                <div class="form-label-row">
+                                    <label class="form-label" for="entradaManha">
+                                        <i class="fas fa-sign-in-alt"></i>
+                                        Entrada
+                                    </label>
+                                    <button type="button" class="btn-agora" onclick="preencherHoraAtual('entradaManha')" title="Preencher com a hora atual">
+                                        <i class="fas fa-clock"></i> Agora
+                                    </button>
+                                </div>
                                 <input type="time" 
                                        class="form-control" 
                                        id="entradaManha">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="saidaManha">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    Saída para Almoço
-                                </label>
+                                <div class="form-label-row">
+                                    <label class="form-label" for="saidaManha">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        Saída para Almoço
+                                    </label>
+                                    <button type="button" class="btn-agora" onclick="preencherHoraAtual('saidaManha')" title="Preencher com a hora atual">
+                                        <i class="fas fa-clock"></i> Agora
+                                    </button>
+                                </div>
                                 <input type="time" 
                                        class="form-control" 
                                        id="saidaManha">
@@ -110,19 +120,29 @@ function carregarInterfaceFrequencia() {
                         </div>
                         <div class="card-body">
                             <div class="form-group">
-                                <label class="form-label" for="entradaTarde">
-                                    <i class="fas fa-sign-in-alt"></i>
-                                    Retorno do Almoço
-                                </label>
+                                <div class="form-label-row">
+                                    <label class="form-label" for="entradaTarde">
+                                        <i class="fas fa-sign-in-alt"></i>
+                                        Retorno do Almoço
+                                    </label>
+                                    <button type="button" class="btn-agora" onclick="preencherHoraAtual('entradaTarde')" title="Preencher com a hora atual">
+                                        <i class="fas fa-clock"></i> Agora
+                                    </button>
+                                </div>
                                 <input type="time" 
                                        class="form-control" 
                                        id="entradaTarde">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="saidaTarde">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                    Saída
-                                </label>
+                                <div class="form-label-row">
+                                    <label class="form-label" for="saidaTarde">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                        Saída
+                                    </label>
+                                    <button type="button" class="btn-agora" onclick="preencherHoraAtual('saidaTarde')" title="Preencher com a hora atual">
+                                        <i class="fas fa-clock"></i> Agora
+                                    </button>
+                                </div>
                                 <input type="time" 
                                        class="form-control" 
                                        id="saidaTarde">

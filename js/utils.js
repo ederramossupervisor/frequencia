@@ -800,6 +800,38 @@ function validarHoraMobile(input) {
     }
 }
 
+/**
+ * Preenche um campo de hora (e seu campo espelho no mobile, se existir)
+ * com a hora atual do dispositivo.
+ * @param {string} id - ID do campo original (ex: 'entradaManha')
+ */
+function preencherHoraAtual(id) {
+    const agora = new Date();
+    const valor = String(agora.getHours()).padStart(2, '0') + ':' +
+                  String(agora.getMinutes()).padStart(2, '0');
+
+    const campo = document.getElementById(id);
+    if (campo) {
+        campo.value = valor;
+        campo.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    const campoMobile = document.getElementById(id + 'Mobile');
+    if (campoMobile) {
+        campoMobile.value = valor;
+        campoMobile.style.borderColor = 'var(--verde-musgo)';
+        campoMobile.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    if (typeof mostrarNotificacao === 'function') {
+        mostrarNotificacao(`Hora preenchida: ${valor}`, 'success', 1500);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.preencherHoraAtual = preencherHoraAtual;
+}
+
 // Inicializações automáticas
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarCamposHora, 100);

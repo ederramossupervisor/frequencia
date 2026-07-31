@@ -1221,3 +1221,195 @@ input:focus, select:focus, textarea:focus {
     align-items: center;
     gap: 10px;             /* espaçamento entre ícone e título */
 }
+
+/* ============================================
+   AÇÕES DO CABEÇALHO (tema / sync)
+   ============================================ */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-toggle-tema,
+.pending-sync-badge {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: var(--branco);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    opacity: 0.85;
+    transition: var(--transicao-rapida);
+    flex-shrink: 0;
+}
+
+.btn-toggle-tema:hover {
+    background: rgba(255, 255, 255, 0.3);
+    opacity: 1;
+    transform: rotate(15deg);
+}
+
+.btn-toggle-tema:active {
+    transform: rotate(15deg) scale(0.92);
+}
+
+.pending-sync-badge.hidden {
+    display: none;
+}
+
+/* ============================================
+   BOTÃO "AGORA" NOS CAMPOS DE HORA
+   ============================================ */
+.form-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+.form-label-row .form-label {
+    margin-bottom: 0;
+}
+
+.btn-agora {
+    background: none;
+    border: 1px solid var(--cinza-claro);
+    color: var(--cinza-escuro);
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    transition: var(--transicao-rapida);
+}
+
+.btn-agora i {
+    font-size: 0.68rem;
+}
+
+.btn-agora:hover {
+    background: var(--azul-es-claro);
+    border-color: var(--azul-es);
+    color: var(--azul-es-escuro);
+}
+
+.btn-agora:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   MODO ESCURO
+   ============================================ */
+body[data-theme="dark"] {
+    --branco: #1E1E2A;
+    --branco-gelo: #17171F;
+    --cinza-claro: #33333F;
+    --cinza-medio: #4A4A58;
+    --cinza-escuro: #ABABBC;
+    --preto: #EDEDF2;
+    --sombra: rgba(0, 0, 0, 0.45);
+}
+
+body[data-theme="dark"] {
+    background: linear-gradient(135deg, #101018 0%, #1a2436 100%);
+}
+
+body[data-theme="dark"] .app-container {
+    background: var(--branco);
+}
+
+body[data-theme="dark"] .form-control,
+body[data-theme="dark"] select.form-control {
+    background: var(--branco-gelo);
+    border-color: var(--cinza-claro);
+    color: var(--preto);
+}
+
+body[data-theme="dark"] .form-control::placeholder {
+    color: var(--cinza-escuro);
+}
+
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea {
+    border-color: var(--cinza-claro) !important;
+}
+
+body[data-theme="dark"] input:focus,
+body[data-theme="dark"] select:focus,
+body[data-theme="dark"] textarea:focus {
+    border-color: var(--azul-es) !important;
+}
+
+body[data-theme="dark"] .time-simple-input {
+    background: var(--branco-gelo) !important;
+    border-color: #3A5A78 !important;
+    color: #7FC4F5 !important;
+}
+
+body[data-theme="dark"] .time-simple-input:focus {
+    background: var(--branco-gelo) !important;
+    border-color: var(--azul-es) !important;
+}
+
+body[data-theme="dark"] .time-simple-input::placeholder {
+    color: var(--cinza-escuro) !important;
+}
+
+body[data-theme="dark"] .tab-btn.active {
+    background: var(--branco-gelo);
+    color: #7FC4F5;
+}
+
+body[data-theme="dark"] .table th {
+    background: var(--branco-gelo);
+}
+
+body[data-theme="dark"] .table tbody tr:hover {
+    background: var(--branco-gelo);
+}
+
+body[data-theme="dark"] .btn-secondary {
+    background: var(--cinza-claro);
+    color: var(--preto);
+}
+
+body[data-theme="dark"] .btn-agora {
+    border-color: var(--cinza-claro);
+    color: var(--cinza-escuro);
+}
+
+body[data-theme="dark"] .btn-agora:hover {
+    background: rgba(0, 150, 225, 0.15);
+    border-color: var(--azul-es);
+    color: #7FC4F5;
+}
+
+body[data-theme="dark"] .horas-container {
+    background: linear-gradient(135deg, rgba(0, 150, 225, 0.1) 0%, rgba(30, 30, 42, 0.9) 100%);
+    border-color: rgba(0, 150, 225, 0.2);
+}
+
+body[data-theme="dark"] .splash-screen {
+    background: linear-gradient(135deg, #0d1b2a 0%, #101018 100%);
+}
+
+body[data-theme="dark"] .notification {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+body[data-theme="dark"] .modal {
+    background: rgba(0, 0, 0, 0.7);
+}

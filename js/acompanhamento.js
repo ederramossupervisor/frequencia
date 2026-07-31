@@ -93,10 +93,15 @@ function carregarInterfaceAcompanhamento() {
                     <!-- Horários da Justificativa - VERSÃO SIMPLES -->
                     <div class="grid grid-2 gap-3">
                         <div class="form-group">
-                            <label class="form-label" for="horaInicioJustificativa">
-                                <i class="fas fa-play-circle"></i>
-                                Hora Início
-                            </label>
+                            <div class="form-label-row">
+                                <label class="form-label" for="horaInicioJustificativa">
+                                    <i class="fas fa-play-circle"></i>
+                                    Hora Início
+                                </label>
+                                <button type="button" class="btn-agora" onclick="preencherHoraAtual('horaInicioJustificativa')" title="Preencher com a hora atual">
+                                    <i class="fas fa-clock"></i> Agora
+                                </button>
+                            </div>
                             <input type="time" 
                                    class="form-control" 
                                    id="horaInicioJustificativa"
@@ -105,10 +110,15 @@ function carregarInterfaceAcompanhamento() {
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label" for="horaFimJustificativa">
-                                <i class="fas fa-stop-circle"></i>
-                                Hora Fim
-                            </label>
+                            <div class="form-label-row">
+                                <label class="form-label" for="horaFimJustificativa">
+                                    <i class="fas fa-stop-circle"></i>
+                                    Hora Fim
+                                </label>
+                                <button type="button" class="btn-agora" onclick="preencherHoraAtual('horaFimJustificativa')" title="Preencher com a hora atual">
+                                    <i class="fas fa-clock"></i> Agora
+                                </button>
+                            </div>
                             <input type="time" 
                                    class="form-control" 
                                    id="horaFimJustificativa"

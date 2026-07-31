@@ -465,6 +465,7 @@ function alternarTema() {
     
     document.body.setAttribute('data-theme', novoTema);
     localStorage.setItem('tema', novoTema);
+    atualizarIconeTema(novoTema);
     
     mostrarNotificacao(`Tema ${novoTema === 'dark' ? 'escuro' : 'claro'} ativado`, 'success');
 }
@@ -475,6 +476,24 @@ function alternarTema() {
 function carregarTemaSalvo() {
     const temaSalvo = localStorage.getItem('tema') || 'light';
     document.body.setAttribute('data-theme', temaSalvo);
+    atualizarIconeTema(temaSalvo);
+}
+
+/**
+ * Atualiza o ícone do botão de tema (lua/sol) conforme o tema ativo
+ */
+function atualizarIconeTema(tema) {
+    const botao = document.getElementById('btnToggleTema');
+    const icone = botao ? botao.querySelector('i') : null;
+    if (!icone) return;
+    
+    if (tema === 'dark') {
+        icone.classList.remove('fa-moon');
+        icone.classList.add('fa-sun');
+    } else {
+        icone.classList.remove('fa-sun');
+        icone.classList.add('fa-moon');
+    }
 }
 
 // Funções globais para acesso via HTML
