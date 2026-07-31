@@ -48,14 +48,81 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Preenche o card "Saldo do Mês" com os valores reais vindos da planilha
+ * (linhas 55-63, já calculados pelas fórmulas de lá — o app só exibe).
+ */
+function exibirResumoMes(resumo) {
+    const container = document.getElementById('saldoMesConteudo');
+    if (!container || !resumo) return;
+
+    container.innerHTML = `
+        <div class="saldo-item">
+            <span class="saldo-valor">${resumo.horasEfetivasTrabalhadas || '--'}</span>
+            <span class="saldo-label">Trabalhadas</span>
+        </div>
+        <div class="saldo-item">
+            <span class="saldo-valor">${resumo.horasJustificadas || '--'}</span>
+            <span class="saldo-label">Justificadas</span>
+        </div>
+        <div class="saldo-item saldo-compensar">
+            <span class="saldo-valor">${resumo.saldoAcumuladoCompensar || '--'}</span>
+            <span class="saldo-label">A Compensar</span>
+        </div>
+        <div class="saldo-item saldo-repor">
+            <span class="saldo-valor">${resumo.saldoAcumuladoRepor || '--'}</span>
+            <span class="saldo-label">A Repor</span>
+        </div>
+    `;
+}
+
+/**
+ * Volta o card "Saldo do Mês" para o estado de carregamento (usado ao
+ * trocar de mês, antes da nova resposta da planilha chegar).
+ */
+function exibirCarregandoSaldoMes() {
+    const container = document.getElementById('saldoMesConteudo');
+    if (!container) return;
+    container.innerHTML = `
+        <small class="text-muted">
+            <i class="fas fa-spinner fa-spin"></i>
+            Buscando dados da planilha...
+        </small>
+    `;
+}
+
+/**
+ * Mostra uma mensagem no lugar do saldo quando a busca falha.
+ */
+function exibirErroSaldoMes(mensagem) {
+    const container = document.getElementById('saldoMesConteudo');
+    if (!container) return;
+    container.innerHTML = `
+        <small class="text-muted">
+            <i class="fas fa-exclamation-circle"></i>
+            ${mensagem}
+        </small>
+    `;
+}
+
+if (typeof window !== 'undefined') {
+    window.exibirResumoMes = exibirResumoMes;
+    window.exibirCarregandoSaldoMes = exibirCarregandoSaldoMes;
+    window.exibirErroSaldoMes = exibirErroSaldoMes;
+}
+
+/**
  * Busca na planilha (via Apps Script) o status real dos dias do mês e
  * substitui o cache local, redesenhando o seletor de dia em seguida.
+ * Também atualiza o card "Saldo do Mês" com o resumo de horas.
  * Roda em segundo plano — não bloqueia o carregamento da aba.
  */
 async function sincronizarStatusMesComPlanilha(mes) {
     try {
         const config = (typeof carregarConfiguracoes === 'function') ? carregarConfiguracoes() : null;
-        if (!config || !config.sheetIdFrequencia) return;
+        if (!config || !config.sheetIdFrequencia) {
+            exibirErroSaldoMes('Configure o ID da planilha em Configurações');
+            return;
+        }
         if (typeof buscarStatusMesAPI !== 'function') return;
 
         const resultado = await buscarStatusMesAPI(config.sheetIdFrequencia, mes);
@@ -64,11 +131,14 @@ async function sincronizarStatusMesComPlanilha(mes) {
         if (resultado && resultado.success && mes === frequenciaState.mesAtual) {
             substituirStatusMes(mes, resultado.status || {});
             atualizarIndicadoresDias();
+            exibirResumoMes(resultado.resumo);
         } else if (resultado && !resultado.success) {
             console.warn('Não foi possível sincronizar status com a planilha:', resultado.error);
+            exibirErroSaldoMes('Não foi possível buscar os dados da planilha');
         }
     } catch (e) {
         console.warn('Erro ao sincronizar status com a planilha:', e);
+        exibirErroSaldoMes('Não foi possível buscar os dados da planilha');
     }
 }
 
@@ -252,6 +322,24 @@ function carregarInterfaceFrequencia() {
                     </div>
                 </div>
                 
+                <!-- Saldo do Mês (dados reais da planilha) -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-balance-scale"></i>
+                            Saldo do Mês
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="saldoMesConteudo" class="saldo-mes-grid">
+                            <small class="text-muted">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Buscando dados da planilha...
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Botões PRINCIPAIS -->
                 <div class="grid grid-2 gap-2 mt-4">
                     <button class="btn btn-secondary" id="btnLimpar">
@@ -303,6 +391,7 @@ function configurarEventListenersFrequencia() {
         selectMes.addEventListener('change', (e) => {
             frequenciaState.mesAtual = e.target.value;
             atualizarIndicadoresDias();
+            exibirCarregandoSaldoMes();
             sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
         });
     }

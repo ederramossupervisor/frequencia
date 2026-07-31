@@ -1344,6 +1344,53 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============================================
+   SALDO DO MÊS (dados reais da planilha)
+   ============================================ */
+.saldo-mes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+}
+
+.saldo-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--branco-gelo);
+    border-radius: 10px;
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+}
+
+.saldo-valor {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--azul-es);
+    font-family: monospace;
+}
+
+.saldo-item.saldo-compensar .saldo-valor {
+    color: var(--alerta);
+}
+
+.saldo-item.saldo-repor .saldo-valor {
+    color: var(--sucesso);
+}
+
+.saldo-label {
+    font-size: 0.7rem;
+    color: var(--cinza-escuro);
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+body[data-theme="dark"] .saldo-item {
+    background: var(--branco-gelo);
+}
+
+/* ============================================
    MODO ESCURO
    ============================================ */
 body[data-theme="dark"] {
