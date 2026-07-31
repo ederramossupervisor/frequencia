@@ -4,6 +4,78 @@ let frequenciaState = {
     diaAtual: 1
 };
 
+/**
+ * Gera as <option> do seletor de dia, marcando com ✓ (verde) os dias já
+ * registrados por completo e com • (laranja) os registrados parcialmente.
+ * O status vem do armazenamento local (o app não lê dados de volta da
+ * planilha), então reflete o que foi salvo neste navegador.
+ */
+function gerarOpcoesDias(mes, diaSelecionado) {
+    const statusMes = (typeof obterStatusMes === 'function') ? obterStatusMes(mes) : {};
+
+    return Array.from({length: 31}, (_, i) => i + 1)
+        .map(dia => {
+            const status = statusMes[dia];
+            let marcador = '';
+            let estilo = '';
+
+            if (status === 'completo') {
+                marcador = ' ✓';
+                estilo = 'color:#4CAF50;';
+            } else if (status === 'parcial') {
+                marcador = ' •';
+                estilo = 'color:#FF9800;';
+            }
+
+            const selecionado = dia === diaSelecionado ? 'selected' : '';
+            return `<option value="${dia}" ${selecionado} style="${estilo}">${dia.toString().padStart(2, '0')}${marcador}</option>`;
+        }).join('');
+}
+
+/**
+ * Regenera as opções do seletor de dia (usado após trocar de mês ou salvar).
+ */
+function atualizarIndicadoresDias() {
+    const selectDia = document.getElementById('selectDia');
+    if (!selectDia) return;
+    const diaSelecionado = parseInt(selectDia.value) || frequenciaState.diaAtual;
+    selectDia.innerHTML = gerarOpcoesDias(frequenciaState.mesAtual, diaSelecionado);
+}
+
+if (typeof window !== 'undefined') {
+    window.gerarOpcoesDias = gerarOpcoesDias;
+    window.atualizarIndicadoresDias = atualizarIndicadoresDias;
+}
+
+/**
+ * Busca na planilha (via Apps Script) o status real dos dias do mês e
+ * substitui o cache local, redesenhando o seletor de dia em seguida.
+ * Roda em segundo plano — não bloqueia o carregamento da aba.
+ */
+async function sincronizarStatusMesComPlanilha(mes) {
+    try {
+        const config = (typeof carregarConfiguracoes === 'function') ? carregarConfiguracoes() : null;
+        if (!config || !config.sheetIdFrequencia) return;
+        if (typeof buscarStatusMesAPI !== 'function') return;
+
+        const resultado = await buscarStatusMesAPI(config.sheetIdFrequencia, mes);
+
+        // Só aplica se o mês ainda for o selecionado (evita corrida ao trocar rápido de mês)
+        if (resultado && resultado.success && mes === frequenciaState.mesAtual) {
+            substituirStatusMes(mes, resultado.status || {});
+            atualizarIndicadoresDias();
+        } else if (resultado && !resultado.success) {
+            console.warn('Não foi possível sincronizar status com a planilha:', resultado.error);
+        }
+    } catch (e) {
+        console.warn('Erro ao sincronizar status com a planilha:', e);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.sincronizarStatusMesComPlanilha = sincronizarStatusMesComPlanilha;
+}
+
 function initFrequencia() {
     console.log('Inicializando aba Frequência...');
     document.querySelector('#frequencia .loading')?.remove();
@@ -12,6 +84,7 @@ function initFrequencia() {
     
     carregarInterfaceFrequencia();
     configurarEventListenersFrequencia();
+    sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
     
     console.log('Aba Frequência inicializada');
 }
@@ -58,14 +131,13 @@ function carregarInterfaceFrequencia() {
                             ).join('')}
                         </select>
                         <select class="form-control" id="selectDia">
-                            ${Array.from({length: 31}, (_, i) => i + 1)
-                                .map(dia => 
-                                    `<option value="${dia}" ${dia === frequenciaState.diaAtual ? 'selected' : ''}>
-                                        ${dia.toString().padStart(2, '0')}
-                                    </option>`
-                                ).join('')}
+                            ${gerarOpcoesDias(frequenciaState.mesAtual, frequenciaState.diaAtual)}
                         </select>
                     </div>
+                    <small class="dias-legenda">
+                        <span class="legenda-item"><span class="legenda-dot completo"></span> Completo</span>
+                        <span class="legenda-item"><span class="legenda-dot parcial"></span> Parcial</span>
+                    </small>
                 </div>
                 
                 <!-- Horários do Dia - VERSÃO SIMPLES -->
@@ -230,6 +302,8 @@ function configurarEventListenersFrequencia() {
     if (selectMes) {
         selectMes.addEventListener('change', (e) => {
             frequenciaState.mesAtual = e.target.value;
+            atualizarIndicadoresDias();
+            sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
         });
     }
     
@@ -388,6 +462,14 @@ async function salvarFrequencia() {
             throw new Error('Preencha pelo menos um horário');
         }
         
+        // Marca o dia no seletor (✓ completo / • parcial) como palpite
+        // instantâneo, só pra não deixar a tela "parada" — alguns segundos
+        // depois do envio, sincronizamos com os dados reais da planilha.
+        if (typeof salvarStatusDia === 'function') {
+            salvarStatusDia(mes, parseInt(dia), dados);
+            atualizarIndicadoresDias();
+        }
+        
         // Carrega configurações
         const config = carregarConfiguracoes();
         
@@ -433,6 +515,9 @@ async function salvarFrequencia() {
         if (resultado && resultado.success) {
             console.log('✅ Sucesso! Mostrando notificação...');
             mostrarNotificacao('Frequência salva com sucesso!', 'success');
+            // Confirma o indicador com os dados reais da planilha (dá um
+            // tempinho pro Apps Script terminar de gravar antes de reler).
+            setTimeout(() => sincronizarStatusMesComPlanilha(mes), 2500);
         } else {
             const erroMsg = resultado?.error || 'Erro desconhecido';
             console.log('❌ Erro da API:', erroMsg);
