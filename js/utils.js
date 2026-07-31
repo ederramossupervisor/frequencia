@@ -832,6 +832,85 @@ if (typeof window !== 'undefined') {
     window.preencherHoraAtual = preencherHoraAtual;
 }
 
+// ============================================
+// STATUS DOS DIAS (indicador visual no seletor de dia)
+// ============================================
+// Guarda, por mês/ano, quais dias já têm registro (completo, parcial, ou
+// justificado), para exibir um indicador no dropdown de dias. Funciona
+// como cache local: é preenchido instantaneamente a partir do que foi
+// salvo neste navegador e, em seguida, sincronizado com os dados reais
+// da planilha via buscarStatusMesAPI (ver api.js e frequencia.js).
+
+const PREFIXO_STATUS_DIA = 'frequencia_status_dias_';
+
+function obterChaveStatusMes(mes) {
+    const ano = new Date().getFullYear();
+    return `${PREFIXO_STATUS_DIA}${ano}_${mes}`;
+}
+
+/**
+ * Retorna o mapa {dia: 'completo'|'parcial'} salvo localmente para o mês.
+ */
+function obterStatusMes(mes) {
+    try {
+        const bruto = localStorage.getItem(obterChaveStatusMes(mes));
+        return bruto ? JSON.parse(bruto) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+/**
+ * Calcula o status de um dia a partir dos 4 campos de horário.
+ * @returns {'completo'|'parcial'|null} null significa "sem registro"
+ */
+function calcularStatusDia(dados) {
+    const campos = [dados.entradaManha, dados.saidaManha, dados.entradaTarde, dados.saidaTarde];
+    const preenchidos = campos.filter(v => !!v).length;
+    if (preenchidos === 0) return null;
+    if (preenchidos === 4) return 'completo';
+    return 'parcial';
+}
+
+/**
+ * Salva (ou remove) o status de um dia específico do mês.
+ */
+function salvarStatusDia(mes, dia, dados) {
+    try {
+        const status = calcularStatusDia(dados);
+        const mapa = obterStatusMes(mes);
+
+        if (status) {
+            mapa[dia] = status;
+        } else {
+            delete mapa[dia];
+        }
+
+        localStorage.setItem(obterChaveStatusMes(mes), JSON.stringify(mapa));
+    } catch (e) {
+        console.warn('Não foi possível salvar o status do dia:', e);
+    }
+}
+
+/**
+ * Substitui todo o mapa de status de um mês (usado quando a planilha
+ * responde com os dados reais, que têm prioridade sobre o cache local).
+ */
+function substituirStatusMes(mes, mapa) {
+    try {
+        localStorage.setItem(obterChaveStatusMes(mes), JSON.stringify(mapa || {}));
+    } catch (e) {
+        console.warn('Não foi possível salvar o status do mês:', e);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.obterStatusMes = obterStatusMes;
+    window.calcularStatusDia = calcularStatusDia;
+    window.salvarStatusDia = salvarStatusDia;
+    window.substituirStatusMes = substituirStatusMes;
+}
+
 // Inicializações automáticas
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarCamposHora, 100);
