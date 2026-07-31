@@ -175,6 +175,47 @@ async function testarConexaoAppsScript() {
 }
 
 /**
+ * Busca na PLANILHA (via doGet do Apps Script) quais dias do mês já
+ * possuem registro — horários completos, parciais, ou justificativa.
+ * Diferente do envio de dados, esta é uma requisição GET normal (sem
+ * 'no-cors'), porque precisamos LER o JSON de resposta.
+ *
+ * Requer uma rota `doGet` no Apps Script (ver instruções fornecidas).
+ * @param {string} sheetId - ID da planilha de frequência
+ * @param {string} mes - Nome do mês (ex: 'JULHO'), igual ao nome da aba
+ * @returns {Promise<{success: boolean, status?: object, error?: string}>}
+ */
+async function buscarStatusMesAPI(sheetId, mes) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        if (!sheetId || !mes) {
+            return { success: false, error: 'Planilha ou mês não informados' };
+        }
+
+        const url = `${CONFIG.APP_SCRIPT_URL}?action=statusMes&sheetId=${encodeURIComponent(sheetId)}&mes=${encodeURIComponent(mes)}`;
+
+        const resposta = await fetch(url, { method: 'GET' });
+
+        if (!resposta.ok) {
+            throw new Error(`Resposta HTTP ${resposta.status}`);
+        }
+
+        const resultado = await resposta.json();
+        return resultado;
+
+    } catch (error) {
+        console.warn('Não foi possível buscar status da planilha:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.buscarStatusMesAPI = buscarStatusMesAPI;
+}
+
+/**
  * Envia dados de frequência
  */
 async function salvarFrequenciaAPI(dados) {
