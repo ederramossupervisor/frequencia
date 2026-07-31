@@ -127,7 +127,7 @@ function carregarInterfaceAcompanhamento() {
                         </div>
                     </div>
                     
-                    <!-- Checkbox Horário de Almoço -->
+                    <!-- Horário de Almoço -->
                     <div class="form-group">
                         <div class="form-check">
                             <input 
@@ -138,11 +138,21 @@ function carregarInterfaceAcompanhamento() {
                             >
                             <label class="form-check-label" for="fezAlmoco">
                                 <i class="fas fa-utensils"></i>
-                                Descontar 1 hora de almoço
+                                Descontar horário de almoço
                             </label>
                         </div>
+                        <div class="form-group mt-2" id="duracaoAlmocoWrapper">
+                            <label class="form-label" for="duracaoAlmoco" style="font-size:0.8rem;">
+                                Duração do almoço
+                            </label>
+                            <input type="time" 
+                                   class="form-control" 
+                                   id="duracaoAlmoco" 
+                                   value="01:00"
+                                   style="max-width:140px;">
+                        </div>
                         <small class="text-muted">
-                            Marque se fez horário de almoço durante o período justificado
+                            Ajuste o tempo caso o almoço não tenha sido de 1 hora
                         </small>
                     </div>
                     
@@ -346,8 +356,19 @@ function configurarEventListenersAcompanhamento() {
     // Checkbox almoço
     const fezAlmocoCheckbox = document.getElementById('fezAlmoco');
     if (fezAlmocoCheckbox) {
-        fezAlmocoCheckbox.addEventListener('change', calcularHorasJustificativa);
+        fezAlmocoCheckbox.addEventListener('change', () => {
+            atualizarEstadoDuracaoAlmoco();
+            calcularHorasJustificativa();
+        });
     }
+    
+    // Duração do almoço (editável, não fixa em 1h)
+    const duracaoAlmocoInput = document.getElementById('duracaoAlmoco');
+    if (duracaoAlmocoInput) {
+        duracaoAlmocoInput.addEventListener('change', calcularHorasJustificativa);
+    }
+    
+    atualizarEstadoDuracaoAlmoco();
     
     // Validação do código em tempo real
     const codigoSelect = document.getElementById('codigoJustificativa');
@@ -419,6 +440,7 @@ function calcularHorasJustificativa() {
     const horaInicio = document.getElementById('horaInicioJustificativa')?.value;
     const horaFim = document.getElementById('horaFimJustificativa')?.value;
     const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
+    const duracaoAlmocoValor = document.getElementById('duracaoAlmoco')?.value || '01:00';
     
     let horasBrutas = "00:00";
     let descontoAlmoco = "00:00";
@@ -429,30 +451,32 @@ function calcularHorasJustificativa() {
         // Calcula horas brutas
         horasBrutas = calcularHorasTrabalhadas(horaInicio, horaFim, "00:00");
         
-        // Calcula desconto de almoço
+        // Calcula desconto de almoço (duração informada pelo usuário, não fixa em 1h)
         if (fezAlmoco) {
-            // Verifica se o período tem mais de 6 horas (normalmente tem almoço)
             const [horas, minutos] = horasBrutas.split(':').map(Number);
             const totalMinutos = horas * 60 + minutos;
             
-            if (totalMinutos >= 360) { // 6 horas ou mais
-                descontoAlmoco = "01:00";
+            const [horasAlmoco, minutosAlmoco] = duracaoAlmocoValor.split(':').map(Number);
+            const minutosAlmocoTotal = (horasAlmoco * 60) + minutosAlmoco;
+            
+            if (minutosAlmocoTotal > 0 && totalMinutos > minutosAlmocoTotal) {
+                descontoAlmoco = duracaoAlmocoValor;
                 
                 // Calcula horas líquidas
-                const minutosLiquidos = totalMinutos - 60;
-                if (minutosLiquidos < 0) {
-                    horasLiquidas = "00:00";
-                } else {
-                    const horasLiq = Math.floor(minutosLiquidos / 60);
-                    const minutosLiq = minutosLiquidos % 60;
-                    horasLiquidas = `${String(horasLiq).padStart(2, '0')}:${String(minutosLiq).padStart(2, '0')}`;
-                }
+                const minutosLiquidos = totalMinutos - minutosAlmocoTotal;
+                const horasLiq = Math.floor(minutosLiquidos / 60);
+                const minutosLiq = minutosLiquidos % 60;
+                horasLiquidas = `${String(horasLiq).padStart(2, '0')}:${String(minutosLiq).padStart(2, '0')}`;
                 
                 textoCalculo = `Das ${horaInicio} às ${horaFim} = ${horasBrutas} - ${descontoAlmoco} almoço = ${horasLiquidas}`;
+            } else if (minutosAlmocoTotal > 0) {
+                descontoAlmoco = "00:00";
+                horasLiquidas = horasBrutas;
+                textoCalculo = `Das ${horaInicio} às ${horaFim} = ${horasBrutas} (sem desconto - período menor que o almoço informado)`;
             } else {
                 descontoAlmoco = "00:00";
                 horasLiquidas = horasBrutas;
-                textoCalculo = `Das ${horaInicio} às ${horaFim} = ${horasBrutas} (sem desconto de almoço - período curto)`;
+                textoCalculo = `Das ${horaInicio} às ${horaFim} = ${horasBrutas} (informe a duração do almoço)`;
             }
         } else {
             descontoAlmoco = "00:00";
@@ -473,6 +497,19 @@ function calcularHorasJustificativa() {
     if (textoCalculoEl) textoCalculoEl.textContent = textoCalculo;
 }
 
+/**
+ * Habilita/desabilita visualmente o campo de duração do almoço
+ * conforme o checkbox "Descontar horário de almoço".
+ */
+function atualizarEstadoDuracaoAlmoco() {
+    const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
+    const wrapper = document.getElementById('duracaoAlmocoWrapper');
+    const campo = document.getElementById('duracaoAlmoco');
+    
+    if (campo) campo.disabled = !fezAlmoco;
+    if (wrapper) wrapper.style.opacity = fezAlmoco ? '1' : '0.5';
+}
+
 function limparJustificativa() {
     if (confirm('Limpar formulário de justificativa?')) {
         const codigoSelect = document.getElementById('codigoJustificativa');
@@ -481,6 +518,7 @@ function limparJustificativa() {
         const horaInicioMobile = document.getElementById('horaInicioJustificativaMobile');
         const horaFimMobile = document.getElementById('horaFimJustificativaMobile');
         const fezAlmoco = document.getElementById('fezAlmoco');
+        const duracaoAlmoco = document.getElementById('duracaoAlmoco');
         const observacao = document.getElementById('observacaoJustificativa');
         
         if (codigoSelect) codigoSelect.value = '';
@@ -489,8 +527,10 @@ function limparJustificativa() {
         if (horaInicioMobile) horaInicioMobile.value = '08:00';
         if (horaFimMobile) horaFimMobile.value = '17:00';
         if (fezAlmoco) fezAlmoco.checked = true;
+        if (duracaoAlmoco) duracaoAlmoco.value = '01:00';
         if (observacao) observacao.value = '';
         
+        atualizarEstadoDuracaoAlmoco();
         calcularHorasJustificativa();
     }
 }
