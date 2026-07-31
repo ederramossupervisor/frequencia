@@ -1310,6 +1310,40 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============================================
+   LEGENDA DO INDICADOR DE DIAS
+   ============================================ */
+.dias-legenda {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+    color: var(--cinza-escuro);
+    font-size: 0.78rem;
+}
+
+.dias-legenda .legenda-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.dias-legenda .legenda-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.dias-legenda .legenda-dot.completo {
+    background: var(--sucesso);
+}
+
+.dias-legenda .legenda-dot.parcial {
+    background: var(--alerta);
+}
+
+/* ============================================
    MODO ESCURO
    ============================================ */
 body[data-theme="dark"] {
