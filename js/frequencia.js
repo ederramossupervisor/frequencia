@@ -1,7 +1,8 @@
 // FREQUENCIA.JS - VERSÃO COMPLETA COM CAMPOS SIMPLES
 let frequenciaState = {
     mesAtual: '',
-    diaAtual: 1
+    diaAtual: 1,
+    diasDoMes: {}   // cache: {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde, totalGeral, ...}} vindo da planilha
 };
 
 /**
@@ -111,9 +112,59 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Verifica se os 4 campos de horário do dia estão vazios (usado para
+ * decidir se é seguro carregar dados da planilha por cima automaticamente,
+ * sem apagar algo que a pessoa já esteja digitando).
+ */
+function camposEstaoVazios() {
+    return ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'].every(id => {
+        const el = document.getElementById(id);
+        return !el || !el.value;
+    });
+}
+
+/**
+ * Preenche os campos de horário do dia selecionado com os dados reais da
+ * planilha (se já tiverem sido buscados) e atualiza o "Resumo do Dia"
+ * usando o Total Geral que a própria planilha já calcula — em vez de
+ * recalcular aqui, evitando qualquer divergência com o que está lá.
+ * Se o dia não tiver dados (ainda não preenchido), limpa os campos.
+ */
+function carregarDadosDoDia(dia) {
+    const dadosDia = frequenciaState.diasDoMes[dia];
+
+    const definirValor = (id, valor) => {
+        const campo = document.getElementById(id);
+        if (!campo) return;
+        campo.value = valor || '';
+        const campoMobile = document.getElementById(id + 'Mobile');
+        if (campoMobile) campoMobile.value = valor || '';
+    };
+
+    definirValor('entradaManha', dadosDia?.entradaManha);
+    definirValor('saidaManha', dadosDia?.saidaManha);
+    definirValor('entradaTarde', dadosDia?.entradaTarde);
+    definirValor('saidaTarde', dadosDia?.saidaTarde);
+
+    const horasTotalEl = document.getElementById('horasTotal');
+    if (dadosDia && dadosDia.totalGeral) {
+        // Usa o total já calculado pela planilha (fonte da verdade)
+        if (horasTotalEl) horasTotalEl.textContent = dadosDia.totalGeral;
+    } else {
+        // Sem dado da planilha ainda (ou dia vazio) — calcula localmente
+        calcularHoras();
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.carregarDadosDoDia = carregarDadosDoDia;
+}
+
+/**
  * Busca na planilha (via Apps Script) o status real dos dias do mês e
  * substitui o cache local, redesenhando o seletor de dia em seguida.
- * Também atualiza o card "Saldo do Mês" com o resumo de horas.
+ * Também atualiza o card "Saldo do Mês" e, se os campos de horário
+ * estiverem vazios, carrega os dados reais do dia selecionado.
  * Roda em segundo plano — não bloqueia o carregamento da aba.
  */
 async function sincronizarStatusMesComPlanilha(mes) {
@@ -132,6 +183,11 @@ async function sincronizarStatusMesComPlanilha(mes) {
             substituirStatusMes(mes, resultado.status || {});
             atualizarIndicadoresDias();
             exibirResumoMes(resultado.resumo);
+
+            frequenciaState.diasDoMes = resultado.dias || {};
+            if (camposEstaoVazios()) {
+                carregarDadosDoDia(frequenciaState.diaAtual);
+            }
         } else if (resultado && !resultado.success) {
             console.warn('Não foi possível sincronizar status com a planilha:', resultado.error);
             exibirErroSaldoMes('Não foi possível buscar os dados da planilha');
@@ -399,6 +455,7 @@ function configurarEventListenersFrequencia() {
     if (selectDia) {
         selectDia.addEventListener('change', (e) => {
             frequenciaState.diaAtual = parseInt(e.target.value);
+            carregarDadosDoDia(frequenciaState.diaAtual);
         });
     }
     
