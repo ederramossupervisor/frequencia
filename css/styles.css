@@ -18,6 +18,13 @@
     --erro: #F44336;
     --alerta: #FF9800;
     --sombra: rgba(0, 150, 225, 0.1);
+
+    /* Verde musgo — usado em indicadores de status, ícones e no botão
+       "Bati o Ponto". Faltava aqui: as regras que usavam var(--verde-musgo)
+       ficavam inválidas silenciosamente (sem cor/fundo nenhum). */
+    --verde-musgo: #556B2F;
+    --verde-musgo-escuro: #3E4F22;
+    --verde-musgo-claro: #8CA653;
     
     /* Transições */
     --transicao-rapida: all 0.2s ease;
