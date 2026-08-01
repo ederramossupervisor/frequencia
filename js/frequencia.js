@@ -136,9 +136,13 @@ function carregarDadosDoDia(dia) {
     const definirValor = (id, valor) => {
         const campo = document.getElementById(id);
         if (!campo) return;
-        campo.value = valor || '';
+        // A planilha às vezes exibe a hora sem zero à esquerda (ex: "8:16"
+        // em vez de "08:16"), o que o <input type="time"> rejeita
+        // silenciosamente. formatarHora() normaliza para "HH:MM".
+        const valorNormalizado = (typeof formatarHora === 'function') ? (formatarHora(valor) || '') : (valor || '');
+        campo.value = valorNormalizado;
         const campoMobile = document.getElementById(id + 'Mobile');
-        if (campoMobile) campoMobile.value = valor || '';
+        if (campoMobile) campoMobile.value = valorNormalizado;
     };
 
     definirValor('entradaManha', dadosDia?.entradaManha);
