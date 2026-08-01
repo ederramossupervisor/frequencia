@@ -16,7 +16,7 @@
  * Busca no Apps Script os gids (ids internos das abas) do mês informado,
  * em cada uma das planilhas.
  */
-async function buscarGidsPdfAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes) {
+async function buscarGidsPdfAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes, preencherDataImpressao) {
     try {
         if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
             return { success: false, error: 'URL do Apps Script não configurada' };
@@ -28,6 +28,7 @@ async function buscarGidsPdfAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes) {
         const params = new URLSearchParams({ action: 'obterGidsPdf', mes: mes });
         if (sheetIdFrequencia) params.set('sheetIdFrequencia', sheetIdFrequencia);
         if (sheetIdAcompanhamento) params.set('sheetIdAcompanhamento', sheetIdAcompanhamento);
+        if (preencherDataImpressao) params.set('preencherDataImpressao', 'true');
 
         const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
 
@@ -137,7 +138,8 @@ async function imprimirMesPDF(tipo) {
         const resultado = await buscarGidsPdfAPI(
             quererFrequencia ? config.sheetIdFrequencia : null,
             quererAcompanhamento ? config.sheetIdAcompanhamento : null,
-            mes
+            mes,
+            quererAcompanhamento // grava a data de hoje no campo "Data:" só quando o Acompanhamento é impresso
         );
 
         if (!resultado.success) {
