@@ -334,12 +334,62 @@ function carregarInterfaceAcompanhamento() {
                 </div>
             </div>
         </div>
+        
+        <!-- Registrar Período de Férias -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-umbrella-beach"></i>
+                    Registrar Período de Férias
+                </h2>
+                <span class="badge badge-info">Código FR</span>
+            </div>
+            <div class="card-body">
+                <small class="text-muted d-block mb-3">
+                    Informe a data de início e a quantidade de dias corridos de gozo.
+                    O sistema calcula o período e marca o código de férias (FR) apenas
+                    nos dias úteis reais — sábados, domingos e os feriados cadastrados
+                    em Configurações são pulados automaticamente, já que a planilha só
+                    desconta horas dos dias úteis.
+                </small>
+                
+                <div class="grid grid-2 gap-3">
+                    <div class="form-group">
+                        <label class="form-label" for="feriasDataInicio">
+                            <i class="fas fa-calendar-day"></i>
+                            Data de Início
+                        </label>
+                        <input type="date" class="form-control" id="feriasDataInicio" value="${getDataAtualBrasiliaISO()}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="feriasDiasGozo">
+                            <i class="fas fa-calendar-week"></i>
+                            Dias de Gozo (corridos)
+                        </label>
+                        <input type="number" class="form-control" id="feriasDiasGozo" value="30" min="1" max="90">
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary" id="btnCalcularFerias">
+                    <i class="fas fa-calculator"></i>
+                    Calcular Período
+                </button>
+                
+                <div id="feriasPreview" class="mt-3"></div>
+            </div>
+        </div>
     `;
     
     calcularHorasJustificativa();
 }
 
 function configurarEventListenersAcompanhamento() {
+    // Registrar Férias
+    const btnCalcularFerias = document.getElementById('btnCalcularFerias');
+    if (btnCalcularFerias) {
+        btnCalcularFerias.addEventListener('click', calcularEExibirPreviewFerias);
+    }
+    
     // Data e mês
     document.getElementById('dataJustificativa')?.addEventListener('change', (e) => {
         acompanhamentoState.dataJustificativa = e.target.value;
@@ -734,6 +784,149 @@ async function salvarJustificativa() {
             success: false, 
             error: error.message,
             message: error.message 
+        };
+    }
+}
+
+// ============================================
+// REGISTRAR FÉRIAS
+// ============================================
+
+/**
+ * Lê data de início e dias de gozo, calcula quais dias recebem o código
+ * FR (dias úteis reais) e quais são pulados (fim de semana/feriado), e
+ * mostra o resultado antes de aplicar de fato na planilha.
+ */
+function calcularEExibirPreviewFerias() {
+    const dataInicio = document.getElementById('feriasDataInicio')?.value;
+    const diasGozo = parseInt(document.getElementById('feriasDiasGozo')?.value);
+    
+    if (!dataInicio) {
+        mostrarNotificacao('Informe a data de início das férias', 'error');
+        return;
+    }
+    if (!diasGozo || diasGozo < 1) {
+        mostrarNotificacao('Informe a quantidade de dias de gozo', 'error');
+        return;
+    }
+    
+    const feriados = obterFeriadosConfigurados();
+    const { diasUteis, diasPulados } = calcularDiasFerias(dataInicio, diasGozo, feriados);
+    
+    exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados);
+}
+
+function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
+    const container = document.getElementById('feriasPreview');
+    if (!container) return;
+    
+    const [anoI, mesI, diaI] = dataInicio.split('-');
+    const dataFim = new Date(dataInicio);
+    dataFim.setDate(dataFim.getDate() + diasGozo - 1);
+    const dataFimFormatada = `${String(dataFim.getDate()).padStart(2, '0')}/${String(dataFim.getMonth() + 1).padStart(2, '0')}/${dataFim.getFullYear()}`;
+    
+    if (diasUteis.length === 0) {
+        container.innerHTML = `
+            <div class="ferias-resumo">
+                <p><strong>Período:</strong> ${diaI}/${mesI}/${anoI} a ${dataFimFormatada} (${diasGozo} dias corridos)</p>
+                <small class="text-muted">Nenhum dia útil nesse período — nada a aplicar (caiu todo em fim de semana/feriado, o que é bem improvável, confira as datas).</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="ferias-resumo">
+            <p><strong>Período:</strong> ${diaI}/${mesI}/${anoI} a ${dataFimFormatada} (${diasGozo} dias corridos)</p>
+            <p><strong>${diasUteis.length} dia(s) útil(eis)</strong> vão receber o código FR:</p>
+            <div class="ferias-lista">
+                ${diasUteis.map(d => `<span class="ferias-chip">${d.data.split('-').reverse().join('/')}</span>`).join('')}
+            </div>
+            ${diasPulados.length > 0 ? `
+                <p class="mt-2 mb-1"><small class="text-muted">${diasPulados.length} dia(s) pulado(s) (fim de semana ou feriado):</small></p>
+                <div class="ferias-lista">
+                    ${diasPulados.map(d => `<span class="ferias-chip pulado">${d.data.split('-').reverse().join('/')}</span>`).join('')}
+                </div>
+            ` : ''}
+            <button class="btn btn-primary mt-3" id="btnAplicarFerias">
+                <i class="fas fa-check"></i>
+                Aplicar ${diasUteis.length} dia(s) de férias na planilha
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('btnAplicarFerias')?.addEventListener('click', () => {
+        aplicarFeriasCalculadas(diasUteis);
+    });
+}
+
+/**
+ * Envia os dias calculados para o Apps Script, que grava o código FR
+ * (coluna I) e 08:00 de horas justificadas (coluna J) em cada dia.
+ */
+async function aplicarFeriasCalculadas(diasUteis) {
+    const config = carregarConfiguracoes();
+    if (!config.sheetIdFrequencia) {
+        mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('btnAplicarFerias');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aplicando...';
+    }
+    
+    const resultado = await aplicarFeriasAPI({
+        sheetIdFrequencia: config.sheetIdFrequencia,
+        codigo: 'FR',
+        horasPorDia: '08:00',
+        dias: diasUteis.map(d => ({ month: d.month, day: d.day }))
+    });
+    
+    if (resultado && resultado.success) {
+        mostrarNotificacao(`Férias aplicadas em ${diasUteis.length} dia(s) úteis!`, 'success');
+        
+        const previewContainer = document.getElementById('feriasPreview');
+        if (previewContainer) previewContainer.innerHTML = '';
+        
+        // Atualiza os indicadores da aba Frequência (se o mês afetado estiver aberto lá)
+        if (typeof sincronizarStatusMesComPlanilha === 'function' && typeof frequenciaState !== 'undefined') {
+            setTimeout(() => sincronizarStatusMesComPlanilha(frequenciaState.mesAtual), 2500);
+        }
+    } else {
+        mostrarNotificacao(`Erro ao aplicar férias: ${resultado?.error || 'erro desconhecido'}`, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-redo"></i> Tentar novamente';
+        }
+    }
+}
+
+/**
+ * Envia o lote de dias de férias para o Apps Script (operação aplicarFerias).
+ */
+async function aplicarFeriasAPI(dados) {
+    try {
+        if (typeof enviarParaAppsScript === 'undefined') {
+            throw new Error('Função de envio não disponível');
+        }
+        
+        const dadosEnvio = {
+            operation: 'aplicarFerias',
+            sheetIdFrequencia: dados.sheetIdFrequencia,
+            codigo: dados.codigo,
+            horasPorDia: dados.horasPorDia,
+            dias: dados.dias
+        };
+        
+        return await enviarParaAppsScript(dadosEnvio);
+        
+    } catch (error) {
+        console.error('❌ Erro ao aplicar férias:', error);
+        return {
+            success: false,
+            error: error.message
         };
     }
 }

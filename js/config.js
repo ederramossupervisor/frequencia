@@ -37,7 +37,8 @@ const CONFIG = {
     STORAGE_KEYS: {
         FREQUENCIA_SHEET_ID: "frequencia_sheet_id",
         ACOMPANHAMENTO_SHEET_ID: "acompanhamento_sheet_id",
-        USER_SETTINGS: "user_settings"
+        USER_SETTINGS: "user_settings",
+        FERIADOS: "feriados_personalizados"
     },
     
     // Configurações do app

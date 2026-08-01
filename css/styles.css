@@ -1391,6 +1391,93 @@ body[data-theme="dark"] .saldo-item {
 }
 
 /* ============================================
+   FERIADOS PERSONALIZADOS (Configurações)
+   ============================================ */
+.lista-feriados {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.feriado-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--branco-gelo);
+    border-radius: 8px;
+}
+
+.feriado-data {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--azul-es);
+    flex-shrink: 0;
+}
+
+.feriado-descricao {
+    flex: 1;
+    color: var(--preto);
+    font-size: 0.9rem;
+}
+
+.feriado-remover {
+    background: none;
+    border: none;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 6px;
+    transition: var(--transicao-rapida);
+}
+
+.feriado-remover:hover {
+    background: rgba(220, 53, 69, 0.15);
+    color: var(--erro);
+}
+
+.dias-uteis-calc {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--cinza-claro);
+}
+
+.dias-uteis-resultado {
+    background: var(--branco-gelo);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+}
+
+/* ============================================
+   REGISTRAR FÉRIAS (Acompanhamento)
+   ============================================ */
+.ferias-resumo {
+    background: var(--branco-gelo);
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.ferias-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.ferias-chip {
+    background: rgba(0, 150, 225, 0.12);
+    color: var(--azul-es);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.78rem;
+    font-family: monospace;
+}
+
+.ferias-chip.pulado {
+    background: rgba(255, 152, 0, 0.12);
+    color: var(--alerta);
+}
+
+/* ============================================
    PROGRESSO DE HORAS DO MÊS (barrinha no cabeçalho)
    ============================================ */
 .progresso-mes-container {

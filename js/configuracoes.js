@@ -318,6 +318,65 @@ function carregarInterfaceConfiguracoes() {
                 </small>
             </div>
         </div>
+        <!-- Feriados Personalizados -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-calendar-times"></i>
+                    Feriados Personalizados
+                </h2>
+                <span class="badge badge-info" id="badgeFeriados">0 cadastrados</span>
+            </div>
+            <div class="card-body">
+                <small class="text-muted d-block mb-3">
+                    Usados para calcular dias úteis do mês e para pular corretamente
+                    feriados ao registrar férias na aba Acompanhamento. Sábados e
+                    domingos já são considerados automaticamente — cadastre aqui só
+                    os feriados (nacionais, estaduais ou municipais) que valem pra você.
+                </small>
+                
+                <div class="grid grid-2 gap-2">
+                    <div class="form-group">
+                        <label class="form-label" for="novoFeriadoData">
+                            <i class="fas fa-calendar-day"></i>
+                            Data
+                        </label>
+                        <input type="date" class="form-control" id="novoFeriadoData">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="novoFeriadoDescricao">
+                            <i class="fas fa-tag"></i>
+                            Descrição
+                        </label>
+                        <input type="text" class="form-control" id="novoFeriadoDescricao" placeholder="Ex: Aniversário do município">
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary" id="btnAdicionarFeriado">
+                    <i class="fas fa-plus"></i>
+                    Adicionar Feriado
+                </button>
+                
+                <div id="listaFeriados" class="lista-feriados mt-3"></div>
+                
+                <!-- Calculadora de Dias Úteis -->
+                <div class="dias-uteis-calc mt-4">
+                    <label class="form-label" style="font-size:0.85rem;">
+                        <i class="fas fa-calculator"></i>
+                        Conferir dias úteis de um mês
+                    </label>
+                    <div class="grid grid-2 gap-2">
+                        <select class="form-control" id="mesCalculoDiasUteis">
+                            ${CONFIG.MESES.map((mes, i) => 
+                                `<option value="${i}" ${i === new Date().getMonth() ? 'selected' : ''}>${mes}</option>`
+                            ).join('')}
+                        </select>
+                        <input type="number" class="form-control" id="anoCalculoDiasUteis" value="${new Date().getFullYear()}" min="2020" max="2100">
+                    </div>
+                    <div class="dias-uteis-resultado mt-2" id="resultadoDiasUteis"></div>
+                </div>
+            </div>
+        </div>
     `;
     
     // Adiciona estilos específicos
@@ -325,6 +384,83 @@ function carregarInterfaceConfiguracoes() {
     
     // Verifica status do sistema
     verificarStatusSistema();
+    
+    // Renderiza feriados cadastrados e calcula dias úteis do mês atual
+    renderizarListaFeriados();
+    atualizarCalculoDiasUteis();
+}
+
+/**
+ * Renderiza a lista de feriados cadastrados em Configurações.
+ */
+function renderizarListaFeriados() {
+    const container = document.getElementById('listaFeriados');
+    const badge = document.getElementById('badgeFeriados');
+    if (!container) return;
+    
+    const feriados = obterFeriadosConfigurados().slice().sort((a, b) => a.data.localeCompare(b.data));
+    
+    if (badge) badge.textContent = `${feriados.length} cadastrado${feriados.length !== 1 ? 's' : ''}`;
+    
+    if (feriados.length === 0) {
+        container.innerHTML = `<small class="text-muted">Nenhum feriado cadastrado ainda.</small>`;
+        return;
+    }
+    
+    container.innerHTML = feriados.map(f => {
+        const [ano, mes, dia] = f.data.split('-');
+        return `
+            <div class="feriado-item">
+                <span class="feriado-data">${dia}/${mes}/${ano}</span>
+                <span class="feriado-descricao">${f.descricao || 'Feriado'}</span>
+                <button class="feriado-remover" data-data="${f.data}" title="Remover">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    container.querySelectorAll('.feriado-remover').forEach(btn => {
+        btn.addEventListener('click', () => removerFeriado(btn.dataset.data));
+    });
+}
+
+function removerFeriado(data) {
+    const feriados = obterFeriadosConfigurados().filter(f => f.data !== data);
+    salvarFeriadosConfigurados(feriados);
+    renderizarListaFeriados();
+    atualizarCalculoDiasUteis();
+    mostrarNotificacao('Feriado removido', 'success', 1500);
+}
+
+/**
+ * Recalcula e exibe os dias úteis do mês/ano selecionados na calculadora.
+ */
+function atualizarCalculoDiasUteis() {
+    const selectMes = document.getElementById('mesCalculoDiasUteis');
+    const inputAno = document.getElementById('anoCalculoDiasUteis');
+    const resultado = document.getElementById('resultadoDiasUteis');
+    if (!selectMes || !inputAno || !resultado) return;
+    
+    const mesIndex = parseInt(selectMes.value);
+    const ano = parseInt(inputAno.value);
+    if (isNaN(mesIndex) || isNaN(ano)) return;
+    
+    const feriados = obterFeriadosConfigurados();
+    const dias = calcularDiasUteisMes(ano, mesIndex, feriados);
+    
+    resultado.innerHTML = `
+        <strong>${dias} dias úteis</strong>
+        <small class="text-muted d-block">
+            Considerando sábados, domingos e os feriados cadastrados acima.
+            Confira e digite esse número na célula C9 da aba correspondente na sua planilha.
+        </small>
+    `;
+}
+
+if (typeof window !== 'undefined') {
+    window.renderizarListaFeriados = renderizarListaFeriados;
+    window.atualizarCalculoDiasUteis = atualizarCalculoDiasUteis;
 }
 
 /**
@@ -392,6 +528,43 @@ function adicionarEstilosConfiguracoes() {
  * Configura os event listeners da aba configurações
  */
 function configurarEventListenersConfiguracoes() {
+    // Feriados personalizados
+    const btnAdicionarFeriado = document.getElementById('btnAdicionarFeriado');
+    if (btnAdicionarFeriado) {
+        btnAdicionarFeriado.addEventListener('click', () => {
+            const dataInput = document.getElementById('novoFeriadoData');
+            const descInput = document.getElementById('novoFeriadoDescricao');
+            const data = dataInput?.value;
+            const descricao = descInput?.value.trim();
+            
+            if (!data) {
+                mostrarNotificacao('Escolha uma data', 'error');
+                return;
+            }
+            
+            const feriados = obterFeriadosConfigurados();
+            if (feriados.some(f => f.data === data)) {
+                mostrarNotificacao('Essa data já está cadastrada', 'error');
+                return;
+            }
+            
+            feriados.push({ data, descricao: descricao || 'Feriado' });
+            salvarFeriadosConfigurados(feriados);
+            renderizarListaFeriados();
+            atualizarCalculoDiasUteis();
+            
+            if (dataInput) dataInput.value = '';
+            if (descInput) descInput.value = '';
+            
+            mostrarNotificacao('Feriado adicionado', 'success', 1500);
+        });
+    }
+    
+    // Calculadora de dias úteis
+    ['mesCalculoDiasUteis', 'anoCalculoDiasUteis'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', atualizarCalculoDiasUteis);
+    });
+    
     // Botões para abrir templates
     const btnAbrirTemplateFrequencia = document.getElementById('btnAbrirTemplateFrequencia');
     if (btnAbrirTemplateFrequencia) {

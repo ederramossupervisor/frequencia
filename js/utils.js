@@ -833,6 +833,122 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================
+// FERIADOS PERSONALIZADOS E DIAS ÚTEIS
+// ============================================
+// Feriados são cadastrados manualmente em Configurações (sábados e
+// domingos já são considerados automaticamente, sem precisar cadastrar).
+// Usado tanto para calcular dias úteis de um mês quanto para saber quais
+// dias pular ao aplicar um período de férias.
+
+/**
+ * Retorna a lista de feriados cadastrados: [{data: "YYYY-MM-DD", descricao}]
+ */
+function obterFeriadosConfigurados() {
+    try {
+        const bruto = localStorage.getItem(CONFIG.STORAGE_KEYS.FERIADOS);
+        const lista = bruto ? JSON.parse(bruto) : [];
+        return Array.isArray(lista) ? lista : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+/**
+ * Salva a lista completa de feriados cadastrados.
+ */
+function salvarFeriadosConfigurados(lista) {
+    try {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.FERIADOS, JSON.stringify(lista || []));
+        return true;
+    } catch (e) {
+        console.warn('Não foi possível salvar feriados:', e);
+        return false;
+    }
+}
+
+/**
+ * Formata ano/mês(0-11)/dia como "YYYY-MM-DD".
+ */
+function formatarDataISO(ano, mesIndex, dia) {
+    return `${ano}-${String(mesIndex + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
+/**
+ * Verifica se uma data é dia útil: não é sábado/domingo e não está na
+ * lista de feriados cadastrados.
+ */
+function eDiaUtil(ano, mesIndex, dia, feriados) {
+    const data = new Date(ano, mesIndex, dia);
+    const diaSemana = data.getDay(); // 0 = domingo, 6 = sábado
+    if (diaSemana === 0 || diaSemana === 6) return false;
+
+    const dataISO = formatarDataISO(ano, mesIndex, dia);
+    return !feriados.some(f => f.data === dataISO);
+}
+
+/**
+ * Calcula quantos dias úteis um mês tem (sábados, domingos e feriados
+ * cadastrados são descontados). mesIndex é 0-11 (0 = Janeiro).
+ */
+function calcularDiasUteisMes(ano, mesIndex, feriados) {
+    const diasNoMes = new Date(ano, mesIndex + 1, 0).getDate();
+    let contador = 0;
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        if (eDiaUtil(ano, mesIndex, dia, feriados)) {
+            contador++;
+        }
+    }
+
+    return contador;
+}
+
+/**
+ * A partir de uma data de início (dias corridos) e a quantidade de dias
+ * de gozo, percorre o período e separa os dias em:
+ *  - diasUteis: os que devem receber o código de férias (dia de semana,
+ *    sem feriado cadastrado) — {month, day, data}
+ *  - diasPulados: os que caíram em fim de semana ou feriado — mesma forma
+ */
+function calcularDiasFerias(dataInicioStr, diasGozo, feriados) {
+    const [anoInicio, mesInicio, diaInicio] = dataInicioStr.split('-').map(Number);
+    const dataBase = new Date(anoInicio, mesInicio - 1, diaInicio);
+
+    const diasUteis = [];
+    const diasPulados = [];
+
+    for (let i = 0; i < diasGozo; i++) {
+        const dataAtual = new Date(dataBase);
+        dataAtual.setDate(dataBase.getDate() + i);
+
+        const ano = dataAtual.getFullYear();
+        const mesIndex = dataAtual.getMonth();
+        const dia = dataAtual.getDate();
+        const dataISO = formatarDataISO(ano, mesIndex, dia);
+        const nomeMes = CONFIG.MESES[mesIndex];
+
+        const item = { month: nomeMes, day: dia, data: dataISO };
+
+        if (eDiaUtil(ano, mesIndex, dia, feriados)) {
+            diasUteis.push(item);
+        } else {
+            diasPulados.push(item);
+        }
+    }
+
+    return { diasUteis, diasPulados };
+}
+
+if (typeof window !== 'undefined') {
+    window.obterFeriadosConfigurados = obterFeriadosConfigurados;
+    window.salvarFeriadosConfigurados = salvarFeriadosConfigurados;
+    window.formatarDataISO = formatarDataISO;
+    window.eDiaUtil = eDiaUtil;
+    window.calcularDiasUteisMes = calcularDiasUteisMes;
+    window.calcularDiasFerias = calcularDiasFerias;
+}
+
+// ============================================
 // STATUS DOS DIAS (indicador visual no seletor de dia)
 // ============================================
 // Guarda, por mês/ano, quais dias já têm registro (completo, parcial, ou
