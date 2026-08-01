@@ -89,11 +89,32 @@ function montarUrlExportarPdf(sheetId, gid, caberNaPagina) {
  * do "await", muitos navegadores (principalmente no celular) tratam isso
  * como abertura não solicitada pelo usuário e bloqueiam.
  */
-async function imprimirMesPDF() {
-    const config = carregarConfiguracoes();
+/**
+ * Ação principal: abre em PDF a aba do mês atual, na(s) planilha(s)
+ * escolhida(s) no menu.
+ *
+ * @param {'frequencia'|'acompanhamento'|'ambas'} tipo - Qual planilha
+ *   imprimir. Vem do item do menu clicado.
+ *
+ * Importante: as janelas são abertas de forma SÍNCRONA (em branco), antes
+ * do fetch assíncrono, e só depois recebem a URL final. Isso evita que o
+ * navegador bloqueie como pop-up — se abríssemos a janela só depois do
+ * "await", muitos navegadores (principalmente no celular) tratam isso
+ * como abertura não solicitada pelo usuário e bloqueiam.
+ */
+async function imprimirMesPDF(tipo) {
+    fecharMenuPdf();
 
-    if (!config.sheetIdFrequencia && !config.sheetIdAcompanhamento) {
-        mostrarNotificacao('Configure suas planilhas antes de imprimir.', 'error');
+    const config = carregarConfiguracoes();
+    const quererFrequencia = tipo === 'frequencia' || tipo === 'ambas';
+    const quererAcompanhamento = tipo === 'acompanhamento' || tipo === 'ambas';
+
+    if (quererFrequencia && !config.sheetIdFrequencia) {
+        mostrarNotificacao('Planilha de Frequência não configurada.', 'error');
+        return;
+    }
+    if (quererAcompanhamento && !config.sheetIdAcompanhamento) {
+        mostrarNotificacao('Planilha de Acompanhamento não configurada.', 'error');
         return;
     }
 
@@ -109,11 +130,15 @@ async function imprimirMesPDF() {
     }
 
     // Abre as janelas já, em branco, para não serem bloqueadas como pop-up.
-    const janelaFrequencia = config.sheetIdFrequencia ? window.open('', '_blank') : null;
-    const janelaAcompanhamento = config.sheetIdAcompanhamento ? window.open('', '_blank') : null;
+    const janelaFrequencia = quererFrequencia ? window.open('', '_blank') : null;
+    const janelaAcompanhamento = quererAcompanhamento ? window.open('', '_blank') : null;
 
     try {
-        const resultado = await buscarGidsPdfAPI(config.sheetIdFrequencia, config.sheetIdAcompanhamento, mes);
+        const resultado = await buscarGidsPdfAPI(
+            quererFrequencia ? config.sheetIdFrequencia : null,
+            quererAcompanhamento ? config.sheetIdAcompanhamento : null,
+            mes
+        );
 
         if (!resultado.success) {
             janelaFrequencia?.close();
@@ -163,8 +188,35 @@ async function imprimirMesPDF() {
     }
 }
 
+/**
+ * Abre/fecha o menu discreto com as opções (Frequência / Acompanhamento /
+ * Ambas). Fecha automaticamente se o usuário clicar fora dele.
+ */
+function alternarMenuPdf(event) {
+    event?.stopPropagation();
+    const menu = document.getElementById('pdfMenu');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+}
+
+function fecharMenuPdf() {
+    document.getElementById('pdfMenu')?.classList.add('hidden');
+}
+
+if (typeof document !== 'undefined') {
+    // Fecha o menu ao clicar em qualquer lugar fora dele
+    document.addEventListener('click', (event) => {
+        const wrapper = document.getElementById('pdfMenuWrapper');
+        if (wrapper && !wrapper.contains(event.target)) {
+            fecharMenuPdf();
+        }
+    });
+}
+
 if (typeof window !== 'undefined') {
     window.buscarGidsPdfAPI = buscarGidsPdfAPI;
     window.montarUrlExportarPdf = montarUrlExportarPdf;
     window.imprimirMesPDF = imprimirMesPDF;
+    window.alternarMenuPdf = alternarMenuPdf;
+    window.fecharMenuPdf = fecharMenuPdf;
 }

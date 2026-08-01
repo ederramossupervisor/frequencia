@@ -129,27 +129,23 @@ function carregarInterfaceAcompanhamento() {
                     
                     <!-- Horário de Almoço -->
                     <div class="form-group">
-                        <div class="form-check">
-                            <input 
-                                class="form-check-input" 
-                                type="checkbox" 
-                                id="fezAlmoco"
-                                checked
-                            >
-                            <label class="form-check-label" for="fezAlmoco">
-                                <i class="fas fa-utensils"></i>
-                                Descontar horário de almoço
+                        <div class="almoco-row">
+                            <label class="switch-toggle" for="fezAlmoco">
+                                <input type="checkbox" id="fezAlmoco" checked>
+                                <span class="switch-toggle-track"><span class="switch-toggle-thumb"></span></span>
+                                <span class="switch-toggle-label">
+                                    <i class="fas fa-utensils"></i>
+                                    Descontar almoço
+                                </span>
                             </label>
-                        </div>
-                        <div class="form-group mt-2" id="duracaoAlmocoWrapper">
-                            <label class="form-label" for="duracaoAlmoco" style="font-size:0.8rem;">
-                                Duração do almoço
-                            </label>
-                            <input type="time" 
-                                   class="form-control" 
-                                   id="duracaoAlmoco" 
-                                   value="01:00"
-                                   style="max-width:140px;">
+                            <div class="almoco-duracao-inline" id="duracaoAlmocoWrapper">
+                                <input type="time" 
+                                       class="form-control almoco-duracao-input" 
+                                       id="duracaoAlmoco" 
+                                       value="01:00"
+                                       aria-label="Duração do almoço"
+                                       title="Duração do almoço">
+                            </div>
                         </div>
                         <small class="text-muted">
                             Ajuste o tempo caso o almoço não tenha sido de 1 hora
@@ -507,7 +503,7 @@ function atualizarEstadoDuracaoAlmoco() {
     const campo = document.getElementById('duracaoAlmoco');
     
     if (campo) campo.disabled = !fezAlmoco;
-    if (wrapper) wrapper.style.opacity = fezAlmoco ? '1' : '0.5';
+    if (wrapper) wrapper.classList.toggle('disabled', !fezAlmoco);
 }
 
 function limparJustificativa() {
