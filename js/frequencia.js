@@ -264,6 +264,17 @@ async function sincronizarStatusMesComPlanilha(mes) {
             if (camposEstaoVazios()) {
                 carregarDadosDoDia(frequenciaState.diaAtual);
             }
+
+            // Calcula e escreve os dias úteis do mês em C9, automaticamente
+            if (typeof calcularDiasUteisMes === 'function' && typeof obterFeriadosConfigurados === 'function') {
+                const mesIndex = CONFIG.MESES.indexOf(mes);
+                if (mesIndex !== -1) {
+                    const ano = new Date().getFullYear();
+                    const feriados = obterFeriadosConfigurados();
+                    const diasUteis = calcularDiasUteisMes(ano, mesIndex, feriados);
+                    atualizarDiasUteisNaPlanilha(config.sheetIdFrequencia, mes, diasUteis);
+                }
+            }
         } else if (resultado && !resultado.success) {
             console.warn('Não foi possível sincronizar status com a planilha:', resultado.error);
             exibirErroSaldoMes('Não foi possível buscar os dados da planilha');

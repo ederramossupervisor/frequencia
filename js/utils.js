@@ -939,6 +939,27 @@ function calcularDiasFerias(dataInicioStr, diasGozo, feriados) {
     return { diasUteis, diasPulados };
 }
 
+/**
+ * Envia a quantidade de dias úteis calculada para o Apps Script gravar
+ * na célula C9 da aba do mês correspondente. Fire-and-forget (mesma
+ * limitação de no-cors do resto do app — não confirma o resultado real).
+ */
+async function atualizarDiasUteisNaPlanilha(sheetIdFrequencia, mes, diasUteis) {
+    try {
+        if (typeof enviarParaAppsScript === 'undefined') return;
+        if (!sheetIdFrequencia || !mes || diasUteis === undefined) return;
+
+        await enviarParaAppsScript({
+            operation: 'atualizarDiasUteis',
+            sheetIdFrequencia: sheetIdFrequencia,
+            month: mes,
+            diasUteis: diasUteis
+        });
+    } catch (e) {
+        console.warn('Não foi possível atualizar dias úteis na planilha:', e);
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.obterFeriadosConfigurados = obterFeriadosConfigurados;
     window.salvarFeriadosConfigurados = salvarFeriadosConfigurados;
@@ -946,6 +967,7 @@ if (typeof window !== 'undefined') {
     window.eDiaUtil = eDiaUtil;
     window.calcularDiasUteisMes = calcularDiasUteisMes;
     window.calcularDiasFerias = calcularDiasFerias;
+    window.atualizarDiasUteisNaPlanilha = atualizarDiasUteisNaPlanilha;
 }
 
 // ============================================

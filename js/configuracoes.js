@@ -374,6 +374,15 @@ function carregarInterfaceConfiguracoes() {
                         <input type="number" class="form-control" id="anoCalculoDiasUteis" value="${new Date().getFullYear()}" min="2020" max="2100">
                     </div>
                     <div class="dias-uteis-resultado mt-2" id="resultadoDiasUteis"></div>
+                    <small class="text-muted d-block mt-2">
+                        A aba Frequência já escreve isso automaticamente em C9 sempre
+                        que você abre ou salva o mês. Use o botão abaixo só se quiser
+                        corrigir manualmente outro mês sem precisar abrir a aba.
+                    </small>
+                    <button class="btn btn-secondary mt-2" id="btnAplicarDiasUteis">
+                        <i class="fas fa-file-export"></i>
+                        Aplicar em C9 desse mês
+                    </button>
                 </div>
             </div>
         </div>
@@ -564,6 +573,37 @@ function configurarEventListenersConfiguracoes() {
     ['mesCalculoDiasUteis', 'anoCalculoDiasUteis'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', atualizarCalculoDiasUteis);
     });
+    
+    const btnAplicarDiasUteis = document.getElementById('btnAplicarDiasUteis');
+    if (btnAplicarDiasUteis) {
+        btnAplicarDiasUteis.addEventListener('click', async () => {
+            const selectMes = document.getElementById('mesCalculoDiasUteis');
+            const inputAno = document.getElementById('anoCalculoDiasUteis');
+            const mesIndex = parseInt(selectMes?.value);
+            const ano = parseInt(inputAno?.value);
+            
+            if (isNaN(mesIndex) || isNaN(ano)) return;
+            
+            const config = carregarConfiguracoes();
+            if (!config.sheetIdFrequencia) {
+                mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
+                return;
+            }
+            
+            const mes = CONFIG.MESES[mesIndex];
+            const feriados = obterFeriadosConfigurados();
+            const diasUteis = calcularDiasUteisMes(ano, mesIndex, feriados);
+            
+            btnAplicarDiasUteis.disabled = true;
+            btnAplicarDiasUteis.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aplicando...';
+            
+            await atualizarDiasUteisNaPlanilha(config.sheetIdFrequencia, mes, diasUteis);
+            
+            mostrarNotificacao(`${diasUteis} dias úteis enviados para C9 de ${mes}`, 'success');
+            btnAplicarDiasUteis.disabled = false;
+            btnAplicarDiasUteis.innerHTML = '<i class="fas fa-file-export"></i> Aplicar em C9 desse mês';
+        });
+    }
     
     // Botões para abrir templates
     const btnAbrirTemplateFrequencia = document.getElementById('btnAbrirTemplateFrequencia');
