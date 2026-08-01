@@ -501,8 +501,10 @@ function atualizarEstadoDuracaoAlmoco() {
     const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
     const wrapper = document.getElementById('duracaoAlmocoWrapper');
     const campo = document.getElementById('duracaoAlmoco');
+    const campoMobile = document.getElementById('duracaoAlmocoMobile');
     
     if (campo) campo.disabled = !fezAlmoco;
+    if (campoMobile) campoMobile.disabled = !fezAlmoco;
     if (wrapper) wrapper.classList.toggle('disabled', !fezAlmoco);
 }
 
