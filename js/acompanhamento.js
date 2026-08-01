@@ -366,7 +366,8 @@ function configurarEventListenersAcompanhamento() {
     
     atualizarEstadoDuracaoAlmoco();
     
-    // Validação do código em tempo real
+    // Validação do código em tempo real + preenchimento automático de horas
+    // pra códigos que sempre correspondem ao dia inteiro (ver calcularHorasJustificativa)
     const codigoSelect = document.getElementById('codigoJustificativa');
     if (codigoSelect) {
         codigoSelect.addEventListener('change', (e) => {
@@ -379,6 +380,7 @@ function configurarEventListenersAcompanhamento() {
                 }
             }
             console.log('Código selecionado:', e.target.value);
+            calcularHorasJustificativa();
         });
     }
     
@@ -432,7 +434,34 @@ function configurarEventListenersAcompanhamento() {
     }
 }
 
+// Códigos que sempre correspondem ao dia inteiro (8h), independente do
+// horário de início/fim — férias, atestado, licença, abono, júri etc.
+const CODIGOS_DIA_INTEIRO_8H = ['FR', 'RC', 'SOL', '70', '80', 'APJ'];
+
 function calcularHorasJustificativa() {
+    const codigo = document.getElementById('codigoJustificativa')?.value || '';
+    const ehDiaInteiro = CODIGOS_DIA_INTEIRO_8H.includes(codigo);
+
+    // Desabilita os campos de horário/almoço quando o código já define 8h
+    // fixas — eles ficam sem efeito nesse caso, então deixamos isso claro.
+    ['horaInicioJustificativa', 'horaFimJustificativa', 'fezAlmoco', 'duracaoAlmoco'].forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.disabled = ehDiaInteiro;
+    });
+
+    if (ehDiaInteiro) {
+        const horasBrutasEl = document.getElementById('horasBrutas');
+        const descontoAlmocoEl = document.getElementById('descontoAlmoco');
+        const horasLiquidasEl = document.getElementById('horasLiquidas');
+        const textoCalculoEl = document.getElementById('textoCalculo');
+
+        if (horasBrutasEl) horasBrutasEl.textContent = '08:00';
+        if (descontoAlmocoEl) descontoAlmocoEl.textContent = '00:00';
+        if (horasLiquidasEl) horasLiquidasEl.textContent = '08:00';
+        if (textoCalculoEl) textoCalculoEl.textContent = `Código ${codigo} corresponde ao dia inteiro: 08:00 preenchidas automaticamente.`;
+        return;
+    }
+
     const horaInicio = document.getElementById('horaInicioJustificativa')?.value;
     const horaFim = document.getElementById('horaFimJustificativa')?.value;
     const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
