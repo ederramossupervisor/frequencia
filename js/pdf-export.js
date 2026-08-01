@@ -45,8 +45,15 @@ async function buscarGidsPdfAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes) {
 
 /**
  * Monta a URL de exportação em PDF do Google Sheets para uma aba específica.
+ *
+ * @param {string} sheetId
+ * @param {number|string} gid
+ * @param {boolean} caberNaPagina - Se true, ajusta LARGURA e ALTURA (fitw +
+ *   fith) para a aba inteira caber numa única página A4, encolhendo o
+ *   conteúdo se precisar. Se false, ajusta só a largura (comportamento
+ *   antigo) — o conteúdo pode continuar em várias páginas na vertical.
  */
-function montarUrlExportarPdf(sheetId, gid) {
+function montarUrlExportarPdf(sheetId, gid, caberNaPagina) {
     const params = new URLSearchParams({
         format: 'pdf',
         gid: String(gid),
@@ -63,6 +70,9 @@ function montarUrlExportarPdf(sheetId, gid) {
         gridlines: 'true',
         fzr: 'false'
     });
+    if (caberNaPagina) {
+        params.set('fith', 'true');
+    }
     return `https://docs.google.com/spreadsheets/d/${sheetId}/export?${params.toString()}`;
 }
 
@@ -114,7 +124,7 @@ async function imprimirMesPDF() {
 
         if (janelaFrequencia) {
             if (resultado.gidFrequencia !== undefined) {
-                janelaFrequencia.location.href = montarUrlExportarPdf(config.sheetIdFrequencia, resultado.gidFrequencia);
+                janelaFrequencia.location.href = montarUrlExportarPdf(config.sheetIdFrequencia, resultado.gidFrequencia, false);
                 algumaAbriu = true;
             } else {
                 janelaFrequencia.close();
@@ -123,7 +133,8 @@ async function imprimirMesPDF() {
 
         if (janelaAcompanhamento) {
             if (resultado.gidAcompanhamento !== undefined) {
-                janelaAcompanhamento.location.href = montarUrlExportarPdf(config.sheetIdAcompanhamento, resultado.gidAcompanhamento);
+                // true = ajusta largura E altura, pra aba inteira caber numa única página A4
+                janelaAcompanhamento.location.href = montarUrlExportarPdf(config.sheetIdAcompanhamento, resultado.gidAcompanhamento, true);
                 algumaAbriu = true;
             } else {
                 janelaAcompanhamento.close();
