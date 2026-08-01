@@ -275,6 +275,18 @@ select.form-control {
     width: 100%;
 }
 
+.btn-bater-ponto {
+    background: linear-gradient(135deg, var(--verde-musgo) 0%, #4a7c59 100%);
+    color: var(--branco);
+    font-size: 1.15rem;
+    padding: 1.1rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.btn-bater-ponto:hover {
+    background: linear-gradient(135deg, #4a7c59 0%, var(--verde-musgo) 100%);
+}
+
 .btn-sm {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
