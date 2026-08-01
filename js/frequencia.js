@@ -49,6 +49,81 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Converte uma duração no formato "HH:MM:SS" (como vem da planilha, ex:
+ * "184:00:00") em minutos totais. Tolerante a formatos incompletos.
+ */
+function duracaoParaMinutos(duracaoStr) {
+    if (!duracaoStr) return 0;
+    const partes = duracaoStr.split(':').map(Number);
+    const [h, m, s] = [partes[0] || 0, partes[1] || 0, partes[2] || 0];
+    if (isNaN(h)) return 0;
+    return (h * 60) + m + Math.round(s / 60);
+}
+
+/**
+ * Formata minutos como "Xh" ou "XhMM" (sem zero à esquerda na hora),
+ * pro texto discreto da barra de progresso.
+ */
+function formatarHorasCurto(duracaoStr) {
+    return formatarMinutosCurto(duracaoParaMinutos(duracaoStr));
+}
+
+/**
+ * Mesmo formato de formatarHorasCurto, mas recebe minutos já somados
+ * (usado quando o número não vem direto de uma única string da planilha).
+ */
+function formatarMinutosCurto(minutos) {
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+}
+
+/**
+ * Atualiza a barrinha de progresso do mês (logo abaixo das abas) com base
+ * em quanto da carga horária do mês já está "resolvido" — horas
+ * efetivamente trabalhadas MAIS horas já justificadas (férias, viagem,
+ * atestado etc.) — contra a carga horária total do mês. O que sobra até
+ * 100% é o que ainda falta trabalhar de fato.
+ */
+function atualizarProgressoMes(resumo) {
+    const fill = document.getElementById('progressoMesFill');
+    const texto = document.getElementById('progressoMesTexto');
+    if (!fill || !texto || !resumo) return;
+
+    const minutosBase = duracaoParaMinutos(resumo.baseHorasMes);
+    if (minutosBase <= 0) {
+        fill.style.width = '0%';
+        texto.textContent = '';
+        return;
+    }
+
+    const minutosTrabalhados = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas);
+    const minutosJustificados = duracaoParaMinutos(resumo.horasJustificadas);
+    const minutosResolvidos = minutosTrabalhados + minutosJustificados;
+
+    const percentual = Math.min(100, (minutosResolvidos / minutosBase) * 100);
+
+    fill.style.width = `${percentual}%`;
+    texto.textContent = `${formatarMinutosCurto(minutosResolvidos)}/${formatarHorasCurto(resumo.baseHorasMes)}`;
+}
+
+/**
+ * Volta a barra de progresso do mês para o estado neutro (usado ao
+ * trocar de mês, antes da nova resposta da planilha chegar).
+ */
+function resetarProgressoMes() {
+    const fill = document.getElementById('progressoMesFill');
+    const texto = document.getElementById('progressoMesTexto');
+    if (fill) fill.style.width = '0%';
+    if (texto) texto.textContent = '';
+}
+
+if (typeof window !== 'undefined') {
+    window.atualizarProgressoMes = atualizarProgressoMes;
+    window.resetarProgressoMes = resetarProgressoMes;
+}
+
+/**
  * Preenche o card "Saldo do Mês" com os valores reais vindos da planilha
  * (linhas 55-63, já calculados pelas fórmulas de lá — o app só exibe).
  */
@@ -136,13 +211,9 @@ function carregarDadosDoDia(dia) {
     const definirValor = (id, valor) => {
         const campo = document.getElementById(id);
         if (!campo) return;
-        // A planilha às vezes exibe a hora sem zero à esquerda (ex: "8:16"
-        // em vez de "08:16"), o que o <input type="time"> rejeita
-        // silenciosamente. formatarHora() normaliza para "HH:MM".
-        const valorNormalizado = (typeof formatarHora === 'function') ? (formatarHora(valor) || '') : (valor || '');
-        campo.value = valorNormalizado;
+        campo.value = valor || '';
         const campoMobile = document.getElementById(id + 'Mobile');
-        if (campoMobile) campoMobile.value = valorNormalizado;
+        if (campoMobile) campoMobile.value = valor || '';
     };
 
     definirValor('entradaManha', dadosDia?.entradaManha);
@@ -187,6 +258,7 @@ async function sincronizarStatusMesComPlanilha(mes) {
             substituirStatusMes(mes, resultado.status || {});
             atualizarIndicadoresDias();
             exibirResumoMes(resultado.resumo);
+            atualizarProgressoMes(resultado.resumo);
 
             frequenciaState.diasDoMes = resultado.dias || {};
             if (camposEstaoVazios()) {
@@ -246,13 +318,6 @@ function carregarInterfaceFrequencia() {
                 <span class="badge badge-info">${dataExibicao}</span>
             </div>
             <div class="card-body">
-                <!-- Botão de destaque: preenche a hora atual no próximo -->
-                <!-- horário pendente do dia e já salva, tudo em um clique -->
-                <button type="button" class="btn btn-primary btn-block btn-bater-ponto" id="btnBaterPonto" onclick="baterPontoAgora()">
-                    <i class="fas fa-fingerprint"></i>
-                    Bati o Ponto
-                </button>
-
                 <!-- Seletor de Data -->
                 <div class="form-group">
                     <label class="form-label">
@@ -459,6 +524,7 @@ function configurarEventListenersFrequencia() {
             frequenciaState.mesAtual = e.target.value;
             atualizarIndicadoresDias();
             exibirCarregandoSaldoMes();
+            resetarProgressoMes();
             sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
         });
     }
@@ -587,47 +653,6 @@ function limparFrequencia() {
         });
         calcularHoras();
     }
-}
-
-/**
- * Botão de destaque "Bati o Ponto": preenche o PRÓXIMO horário pendente do
- * dia de HOJE (entradaManha -> saidaManha -> entradaTarde -> saidaTarde,
- * nessa ordem) com a hora atual e já salva em seguida — um único toque em
- * vez de "Agora" + "Salvar".
- *
- * Sempre aponta pro dia de hoje, mesmo que a pessoa esteja com outro dia
- * selecionado na tela no momento (evita registrar o ponto no dia errado).
- */
-async function baterPontoAgora() {
-    const diaHoje = obterDiaAtual();
-    const mesHoje = obterMesAtual();
-
-    if (frequenciaState.mesAtual !== mesHoje) {
-        mostrarNotificacao('Vá para o mês atual para bater o ponto de hoje.', 'error', 4000);
-        return;
-    }
-
-    const selectDia = document.getElementById('selectDia');
-    if (selectDia && parseInt(selectDia.value, 10) !== diaHoje) {
-        selectDia.value = diaHoje;
-        frequenciaState.diaAtual = diaHoje;
-        carregarDadosDoDia(diaHoje);
-    }
-
-    const camposEmOrdem = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
-    const proximoCampo = camposEmOrdem.find(id => !obterValorCampoHora(id));
-
-    if (!proximoCampo) {
-        mostrarNotificacao('Os 4 horários de hoje já estão preenchidos.', 'info', 3000);
-        return;
-    }
-
-    preencherHoraAtual(proximoCampo);
-    await salvarFrequencia();
-}
-
-if (typeof window !== 'undefined') {
-    window.baterPontoAgora = baterPontoAgora;
 }
 
 async function salvarFrequencia() {

@@ -129,23 +129,27 @@ function carregarInterfaceAcompanhamento() {
                     
                     <!-- Horário de Almoço -->
                     <div class="form-group">
-                        <div class="almoco-row">
-                            <label class="switch-toggle" for="fezAlmoco">
-                                <input type="checkbox" id="fezAlmoco" checked>
-                                <span class="switch-toggle-track"><span class="switch-toggle-thumb"></span></span>
-                                <span class="switch-toggle-label">
-                                    <i class="fas fa-utensils"></i>
-                                    Descontar almoço
-                                </span>
+                        <div class="form-check">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                id="fezAlmoco"
+                                checked
+                            >
+                            <label class="form-check-label" for="fezAlmoco">
+                                <i class="fas fa-utensils"></i>
+                                Descontar horário de almoço
                             </label>
-                            <div class="almoco-duracao-inline" id="duracaoAlmocoWrapper">
-                                <input type="time" 
-                                       class="form-control almoco-duracao-input" 
-                                       id="duracaoAlmoco" 
-                                       value="01:00"
-                                       aria-label="Duração do almoço"
-                                       title="Duração do almoço">
-                            </div>
+                        </div>
+                        <div class="form-group mt-2" id="duracaoAlmocoWrapper">
+                            <label class="form-label" for="duracaoAlmoco" style="font-size:0.8rem;">
+                                Duração do almoço
+                            </label>
+                            <input type="time" 
+                                   class="form-control" 
+                                   id="duracaoAlmoco" 
+                                   value="01:00"
+                                   style="max-width:140px;">
                         </div>
                         <small class="text-muted">
                             Ajuste o tempo caso o almoço não tenha sido de 1 hora
@@ -366,8 +370,7 @@ function configurarEventListenersAcompanhamento() {
     
     atualizarEstadoDuracaoAlmoco();
     
-    // Validação do código em tempo real + preenchimento automático de horas
-    // pra códigos que sempre correspondem ao dia inteiro (ver calcularHorasJustificativa)
+    // Validação do código em tempo real
     const codigoSelect = document.getElementById('codigoJustificativa');
     if (codigoSelect) {
         codigoSelect.addEventListener('change', (e) => {
@@ -380,7 +383,6 @@ function configurarEventListenersAcompanhamento() {
                 }
             }
             console.log('Código selecionado:', e.target.value);
-            calcularHorasJustificativa();
         });
     }
     
@@ -434,34 +436,7 @@ function configurarEventListenersAcompanhamento() {
     }
 }
 
-// Códigos que sempre correspondem ao dia inteiro (8h), independente do
-// horário de início/fim — férias, atestado, licença, abono, júri etc.
-const CODIGOS_DIA_INTEIRO_8H = ['FR', 'RC', 'SOL', '70', '80', 'APJ'];
-
 function calcularHorasJustificativa() {
-    const codigo = document.getElementById('codigoJustificativa')?.value || '';
-    const ehDiaInteiro = CODIGOS_DIA_INTEIRO_8H.includes(codigo);
-
-    // Desabilita os campos de horário/almoço quando o código já define 8h
-    // fixas — eles ficam sem efeito nesse caso, então deixamos isso claro.
-    ['horaInicioJustificativa', 'horaFimJustificativa', 'fezAlmoco', 'duracaoAlmoco'].forEach(id => {
-        const campo = document.getElementById(id);
-        if (campo) campo.disabled = ehDiaInteiro;
-    });
-
-    if (ehDiaInteiro) {
-        const horasBrutasEl = document.getElementById('horasBrutas');
-        const descontoAlmocoEl = document.getElementById('descontoAlmoco');
-        const horasLiquidasEl = document.getElementById('horasLiquidas');
-        const textoCalculoEl = document.getElementById('textoCalculo');
-
-        if (horasBrutasEl) horasBrutasEl.textContent = '08:00';
-        if (descontoAlmocoEl) descontoAlmocoEl.textContent = '00:00';
-        if (horasLiquidasEl) horasLiquidasEl.textContent = '08:00';
-        if (textoCalculoEl) textoCalculoEl.textContent = `Código ${codigo} corresponde ao dia inteiro: 08:00 preenchidas automaticamente.`;
-        return;
-    }
-
     const horaInicio = document.getElementById('horaInicioJustificativa')?.value;
     const horaFim = document.getElementById('horaFimJustificativa')?.value;
     const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
@@ -530,11 +505,9 @@ function atualizarEstadoDuracaoAlmoco() {
     const fezAlmoco = document.getElementById('fezAlmoco')?.checked;
     const wrapper = document.getElementById('duracaoAlmocoWrapper');
     const campo = document.getElementById('duracaoAlmoco');
-    const campoMobile = document.getElementById('duracaoAlmocoMobile');
     
     if (campo) campo.disabled = !fezAlmoco;
-    if (campoMobile) campoMobile.disabled = !fezAlmoco;
-    if (wrapper) wrapper.classList.toggle('disabled', !fezAlmoco);
+    if (wrapper) wrapper.style.opacity = fezAlmoco ? '1' : '0.5';
 }
 
 function limparJustificativa() {

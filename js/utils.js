@@ -712,7 +712,7 @@ function criarCamposHoraMobile() {
         }
     });
     
-    const camposAcompanhamento = ['horaInicioJustificativa', 'horaFimJustificativa', 'duracaoAlmoco'];
+    const camposAcompanhamento = ['horaInicioJustificativa', 'horaFimJustificativa'];
     camposAcompanhamento.forEach(id => {
         const campoTime = document.getElementById(id);
         if (campoTime && !document.getElementById(id + 'Mobile')) {
@@ -730,8 +730,7 @@ function criarCampoTextoMobile(campoTime) {
     campoTexto.type = 'text';
     campoTexto.className = 'form-control time-simple-input';
     campoTexto.id = id + 'Mobile';
-    campoTexto.value = campoTime.value || '';
-    campoTexto.disabled = campoTime.disabled;
+    campoTexto.value = '';
     campoTexto.placeholder = 'HH:MM';
     campoTexto.maxLength = 5;
     

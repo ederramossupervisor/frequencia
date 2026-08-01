@@ -18,13 +18,6 @@
     --erro: #F44336;
     --alerta: #FF9800;
     --sombra: rgba(0, 150, 225, 0.1);
-
-    /* Verde musgo — usado em indicadores de status, ícones e no botão
-       "Bati o Ponto". Faltava aqui: as regras que usavam var(--verde-musgo)
-       ficavam inválidas silenciosamente (sem cor/fundo nenhum). */
-    --verde-musgo: #556B2F;
-    --verde-musgo-escuro: #3E4F22;
-    --verde-musgo-claro: #8CA653;
     
     /* Transições */
     --transicao-rapida: all 0.2s ease;
@@ -280,18 +273,6 @@ select.form-control {
 
 .btn-block {
     width: 100%;
-}
-
-.btn-bater-ponto {
-    background: linear-gradient(135deg, var(--verde-musgo) 0%, #4a7c59 100%);
-    color: var(--branco);
-    font-size: 1.15rem;
-    padding: 1.1rem 1.5rem;
-    margin-bottom: 1.25rem;
-}
-
-.btn-bater-ponto:hover {
-    background: linear-gradient(135deg, #4a7c59 0%, var(--verde-musgo) 100%);
 }
 
 .btn-sm {
@@ -1250,55 +1231,6 @@ input:focus, select:focus, textarea:focus {
     gap: 0.5rem;
 }
 
-.pdf-menu-wrapper {
-    position: relative;
-    display: inline-flex;
-}
-
-.pdf-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 100;
-    min-width: 190px;
-    background: var(--branco);
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    padding: 0.35rem;
-}
-
-.pdf-menu.hidden {
-    display: none;
-}
-
-.pdf-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    width: 100%;
-    background: none;
-    border: none;
-    text-align: left;
-    padding: 0.55rem 0.7rem;
-    font-family: inherit;
-    font-size: 0.85rem;
-    color: var(--preto);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: var(--transicao-rapida);
-}
-
-.pdf-menu-item i {
-    width: 16px;
-    text-align: center;
-    color: var(--azul-es);
-}
-
-.pdf-menu-item:hover {
-    background: var(--azul-es-claro);
-}
-
 .btn-toggle-tema,
 .pending-sync-badge {
     background: rgba(255, 255, 255, 0.15);
@@ -1375,92 +1307,6 @@ input:focus, select:focus, textarea:focus {
 
 .btn-agora:active {
     transform: scale(0.95);
-}
-
-/* ============================================
-   TOGGLE DISCRETO — DESCONTO DE ALMOÇO
-   (substitui o checkbox nativo, que fica praticamente
-   invisível no tema escuro e minúsculo no celular)
-   ============================================ */
-.almoco-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.6rem 1rem;
-}
-
-.switch-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    user-select: none;
-}
-
-.switch-toggle input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-}
-
-.switch-toggle-track {
-    position: relative;
-    width: 40px;
-    height: 22px;
-    flex-shrink: 0;
-    background: var(--cinza-medio);
-    border-radius: 999px;
-    transition: var(--transicao-rapida);
-}
-
-.switch-toggle-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 18px;
-    height: 18px;
-    background: var(--branco);
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    transition: var(--transicao-rapida);
-}
-
-.switch-toggle input:checked ~ .switch-toggle-track {
-    background: var(--azul-es);
-}
-
-.switch-toggle input:checked ~ .switch-toggle-track .switch-toggle-thumb {
-    transform: translateX(18px);
-}
-
-.switch-toggle input:focus-visible ~ .switch-toggle-track {
-    box-shadow: 0 0 0 3px var(--azul-es-claro);
-}
-
-.switch-toggle-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--preto);
-}
-
-.almoco-duracao-inline {
-    display: flex;
-    align-items: center;
-    transition: var(--transicao-rapida);
-}
-
-.almoco-duracao-inline.disabled {
-    opacity: 0.45;
-}
-
-.almoco-duracao-input {
-    max-width: 110px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
 }
 
 /* ============================================
@@ -1542,6 +1388,39 @@ input:focus, select:focus, textarea:focus {
 
 body[data-theme="dark"] .saldo-item {
     background: var(--branco-gelo);
+}
+
+/* ============================================
+   PROGRESSO DE HORAS DO MÊS (barrinha no cabeçalho)
+   ============================================ */
+.progresso-mes-container {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.progresso-mes-barra {
+    flex: 1;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progresso-mes-fill {
+    height: 100%;
+    width: 0%;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    transition: width 0.6s ease;
+}
+
+.progresso-mes-texto {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    font-family: monospace;
 }
 
 /* ============================================
