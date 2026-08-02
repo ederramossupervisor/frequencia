@@ -147,13 +147,19 @@ function calcularPrevisaoMes(mes, resumo) {
     const diasSemRegistro = contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes);
 
     const minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas);
-    const minutosJornadaPadrao = (CONFIG.HORAS_JORNADA_PADRAO || 8) * 60;
+    // Prioriza a carga horária diária real da planilha (célula H9, "Carga
+    // Horária/Dia"), que é onde a própria planilha já baseia a BASE DE
+    // HORAS A TRABALHAR NO MÊS. Só cai pro valor fixo do config se, por
+    // algum motivo, a planilha não tiver retornado esse dado.
+    const minutosCargaDiaPlanilha = duracaoParaMinutos(resumo.cargaHorariaDia);
+    const minutosJornadaPadrao = minutosCargaDiaPlanilha > 0 ? minutosCargaDiaPlanilha : (CONFIG.HORAS_JORNADA_PADRAO || 8) * 60;
     const minutosPrevistos = minutosResolvidos + (diasSemRegistro * minutosJornadaPadrao);
 
     return {
         minutosPrevistos: minutosPrevistos,
         minutosBase: duracaoParaMinutos(resumo.baseHorasMes),
-        diasSemRegistro: diasSemRegistro
+        diasSemRegistro: diasSemRegistro,
+        minutosJornadaPadrao: minutosJornadaPadrao
     };
 }
 
@@ -175,7 +181,7 @@ function atualizarPrevisaoMes(mes, resumo) {
 
     el.textContent = `prev. ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
     el.className = 'progresso-mes-previsao' + (previsao.minutosPrevistos < previsao.minutosBase ? ' previsao-abaixo' : ' previsao-ok');
-    el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) sem registro forem trabalhados na jornada padrão (${CONFIG.HORAS_JORNADA_PADRAO || 8}h), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
+    el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) sem registro forem trabalhados na jornada padrão (${formatarMinutosCurto(previsao.minutosJornadaPadrao)}), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
 }
 
 if (typeof window !== 'undefined') {

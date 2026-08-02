@@ -48,9 +48,10 @@ const CONFIG = {
         THEME: "light"
     },
 
-    // Jornada diária padrão (em horas), usada só para a PREVISÃO de horas
-    // do mês: cada dia útil ainda sem registro é assumido como "vai
-    // trabalhar essa quantidade de horas nele".
+    // Jornada diária padrão (em horas) — usada APENAS como fallback pra
+    // Previsão de Horas do Mês, caso a planilha não retorne a "Carga
+    // Horária/Dia" (célula H9 de cada aba de mês). O valor real de cada
+    // pessoa vem da própria planilha, não daqui.
     HORAS_JORNADA_PADRAO: 8
 };
 
