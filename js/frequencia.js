@@ -179,7 +179,7 @@ function atualizarPrevisaoMes(mes, resumo) {
         return;
     }
 
-    el.textContent = `prev. ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
+    el.textContent = `· prev. ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
     el.className = 'progresso-mes-previsao' + (previsao.minutosPrevistos < previsao.minutosBase ? ' previsao-abaixo' : ' previsao-ok');
     el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) sem registro forem trabalhados na jornada padrão (${formatarMinutosCurto(previsao.minutosJornadaPadrao)}), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
 }
@@ -279,9 +279,14 @@ function carregarDadosDoDia(dia) {
     const definirValor = (id, valor) => {
         const campo = document.getElementById(id);
         if (!campo) return;
-        campo.value = valor || '';
+        // <input type="time"> exige rigorosamente "HH:MM" com 2 dígitos na
+        // hora — a planilha às vezes devolve "8:16" (sem zero à esquerda),
+        // que o navegador rejeita silenciosamente (campo fica vazio, sem
+        // erro nenhum). formatarHora() normaliza isso antes de atribuir.
+        const valorNormalizado = (typeof formatarHora === 'function') ? formatarHora(valor) : (valor || '');
+        campo.value = valorNormalizado;
         const campoMobile = document.getElementById(id + 'Mobile');
-        if (campoMobile) campoMobile.value = valor || '';
+        if (campoMobile) campoMobile.value = valorNormalizado;
     };
 
     definirValor('entradaManha', dadosDia?.entradaManha);

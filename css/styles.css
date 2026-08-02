@@ -1517,6 +1517,7 @@ body[data-theme="dark"] .saldo-item {
     white-space: nowrap;
     font-family: monospace;
     font-style: italic;
+    margin-left: 0.5rem;
 }
 
 .progresso-mes-previsao.previsao-abaixo {
