@@ -46,7 +46,12 @@ const CONFIG = {
         AUTO_SAVE: true,
         NOTIFICATIONS: true,
         THEME: "light"
-    }
+    },
+
+    // Jornada diária padrão (em horas), usada só para a PREVISÃO de horas
+    // do mês: cada dia útil ainda sem registro é assumido como "vai
+    // trabalhar essa quantidade de horas nele".
+    HORAS_JORNADA_PADRAO: 8
 };
 
 // Exportar configuração para uso em outros arquivos

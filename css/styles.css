@@ -1510,6 +1510,23 @@ body[data-theme="dark"] .saldo-item {
     font-family: monospace;
 }
 
+/* Previsão de fechamento do mês — discreta, ao lado do "Xh/Yh" real */
+.progresso-mes-previsao {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
+    font-family: monospace;
+    font-style: italic;
+}
+
+.progresso-mes-previsao.previsao-abaixo {
+    color: #FFD54F;
+}
+
+.progresso-mes-previsao.previsao-ok {
+    color: rgba(255, 255, 255, 0.55);
+}
+
 /* ============================================
    MODO ESCURO
    ============================================ */

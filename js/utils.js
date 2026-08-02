@@ -960,12 +960,33 @@ async function atualizarDiasUteisNaPlanilha(sheetIdFrequencia, mes, diasUteis) {
     }
 }
 
+/**
+ * Conta quantos dias úteis do mês ainda NÃO têm nenhum registro (nem
+ * horário parcial, nem completo, nem justificativa) — ou seja, os dias
+ * que a Previsão do Mês vai assumir como "vai trabalhar a jornada padrão
+ * nele". mesIndex é 0-11. statusMes é o mapa {dia: 'completo'|'parcial'}
+ * já sincronizado com a planilha (ver obterStatusMes/substituirStatusMes).
+ */
+function contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes) {
+    const diasNoMes = new Date(ano, mesIndex + 1, 0).getDate();
+    let contador = 0;
+
+    for (let dia = 1; dia <= diasNoMes; dia++) {
+        if (eDiaUtil(ano, mesIndex, dia, feriados) && !statusMes[dia]) {
+            contador++;
+        }
+    }
+
+    return contador;
+}
+
 if (typeof window !== 'undefined') {
     window.obterFeriadosConfigurados = obterFeriadosConfigurados;
     window.salvarFeriadosConfigurados = salvarFeriadosConfigurados;
     window.formatarDataISO = formatarDataISO;
     window.eDiaUtil = eDiaUtil;
     window.calcularDiasUteisMes = calcularDiasUteisMes;
+    window.contarDiasUteisSemRegistro = contarDiasUteisSemRegistro;
     window.calcularDiasFerias = calcularDiasFerias;
     window.atualizarDiasUteisNaPlanilha = atualizarDiasUteisNaPlanilha;
 }

@@ -114,13 +114,75 @@ function atualizarProgressoMes(resumo) {
 function resetarProgressoMes() {
     const fill = document.getElementById('progressoMesFill');
     const texto = document.getElementById('progressoMesTexto');
+    const previsao = document.getElementById('progressoMesPrevisao');
     if (fill) fill.style.width = '0%';
     if (texto) texto.textContent = '';
+    if (previsao) previsao.textContent = '';
+}
+
+/**
+ * Calcula a PREVISÃO de horas do mês: quanto o total tende a fechar se,
+ * daqui pra frente, cada dia útil que ainda não tem nenhum registro for
+ * trabalhado na jornada padrão (CONFIG.HORAS_JORNADA_PADRAO). Dias já
+ * completos, parciais ou justificados não entram nessa "sobra" — eles já
+ * estão contados dentro de horasEfetivasTrabalhadas/horasJustificadas,
+ * que vêm prontos da planilha.
+ *
+ * Ex.: meta de 160h (20 dias úteis x 8h). Se num dos dias já registrados
+ * a pessoa trabalhou 10h em vez de 8h, essas 2h a mais entram em
+ * horasEfetivasTrabalhadas e a previsão sobe para 162h — sem precisar de
+ * nenhuma conta manual, e ela vai se ajustando a cada novo dia salvo.
+ */
+function calcularPrevisaoMes(mes, resumo) {
+    if (!resumo) return null;
+    if (typeof contarDiasUteisSemRegistro !== 'function' || typeof obterFeriadosConfigurados !== 'function') return null;
+
+    const mesIndex = CONFIG.MESES.indexOf(mes);
+    if (mesIndex === -1) return null;
+
+    const ano = new Date().getFullYear();
+    const feriados = obterFeriadosConfigurados();
+    const statusMes = (typeof obterStatusMes === 'function') ? obterStatusMes(mes) : {};
+
+    const diasSemRegistro = contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes);
+
+    const minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas);
+    const minutosJornadaPadrao = (CONFIG.HORAS_JORNADA_PADRAO || 8) * 60;
+    const minutosPrevistos = minutosResolvidos + (diasSemRegistro * minutosJornadaPadrao);
+
+    return {
+        minutosPrevistos: minutosPrevistos,
+        minutosBase: duracaoParaMinutos(resumo.baseHorasMes),
+        diasSemRegistro: diasSemRegistro
+    };
+}
+
+/**
+ * Atualiza o textinho discreto de previsão ao lado da barra de progresso
+ * do mês. Só aparece quando ainda restam dias úteis sem registro (senão a
+ * previsão seria igual ao total já fechado, e não acrescenta nada mostrar).
+ */
+function atualizarPrevisaoMes(mes, resumo) {
+    const el = document.getElementById('progressoMesPrevisao');
+    if (!el) return;
+
+    const previsao = calcularPrevisaoMes(mes, resumo);
+    if (!previsao || previsao.diasSemRegistro <= 0 || previsao.minutosBase <= 0) {
+        el.textContent = '';
+        el.className = 'progresso-mes-previsao';
+        return;
+    }
+
+    el.textContent = `prev. ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
+    el.className = 'progresso-mes-previsao' + (previsao.minutosPrevistos < previsao.minutosBase ? ' previsao-abaixo' : ' previsao-ok');
+    el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) sem registro forem trabalhados na jornada padrão (${CONFIG.HORAS_JORNADA_PADRAO || 8}h), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
 }
 
 if (typeof window !== 'undefined') {
     window.atualizarProgressoMes = atualizarProgressoMes;
     window.resetarProgressoMes = resetarProgressoMes;
+    window.calcularPrevisaoMes = calcularPrevisaoMes;
+    window.atualizarPrevisaoMes = atualizarPrevisaoMes;
 }
 
 /**
@@ -259,6 +321,7 @@ async function sincronizarStatusMesComPlanilha(mes) {
             atualizarIndicadoresDias();
             exibirResumoMes(resultado.resumo);
             atualizarProgressoMes(resultado.resumo);
+            atualizarPrevisaoMes(mes, resultado.resumo);
 
             frequenciaState.diasDoMes = resultado.dias || {};
             if (camposEstaoVazios()) {
