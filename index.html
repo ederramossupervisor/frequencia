@@ -62,9 +62,9 @@
                     <!-- Data será atualizada por JavaScript -->
                 </div>
                 <div class="header-actions">
-                    <button id="pendingSyncBadge" class="pending-sync-badge hidden" title="Registros pendentes de confirmação"></button>
+                    <button id="pendingSyncBadge" class="pending-sync-badge hidden" data-tooltip="Registros pendentes de confirmação" aria-label="Registros pendentes de confirmação"></button>
                     <div class="pdf-menu-wrapper" id="pdfMenuWrapper">
-                        <button id="btnImprimirPdf" class="btn-toggle-tema" onclick="alternarMenuPdf(event)" title="Imprimir em PDF">
+                        <button id="btnImprimirPdf" class="btn-toggle-tema" onclick="alternarMenuPdf(event)" data-tooltip="Imprimir em PDF" aria-label="Imprimir em PDF">
                             <i class="fas fa-print"></i>
                         </button>
                         <div class="pdf-menu hidden" id="pdfMenu">
@@ -80,7 +80,7 @@
                         </div>
                     </div>
                     <div class="pdf-menu-wrapper" id="edocsMenuWrapper">
-                        <button id="btnEdocs" class="btn-toggle-tema" onclick="alternarMenuEdocs(event)" title="Copiar dados para o e-docs (SEDU)">
+                        <button id="btnEdocs" class="btn-toggle-tema" onclick="alternarMenuEdocs(event)" data-tooltip="Copiar dados para o e-docs (SEDU)" aria-label="Copiar dados para o e-docs (SEDU)">
                             <i class="fas fa-file-export"></i>
                         </button>
                         <div class="pdf-menu hidden" id="edocsMenu">
@@ -92,7 +92,7 @@
                             </button>
                         </div>
                     </div>
-                    <button id="btnToggleTema" class="btn-toggle-tema" onclick="alternarTema()" title="Alternar tema claro/escuro">
+                    <button id="btnToggleTema" class="btn-toggle-tema" onclick="alternarTema()" data-tooltip="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">
                         <i class="fas fa-moon"></i>
                     </button>
                 </div>
@@ -115,7 +115,7 @@
             </nav>
             
             <!-- Progresso das horas do mês (dados reais da planilha) -->
-            <div class="progresso-mes-container" id="progressoMesContainer" title="Horas trabalhadas no mês">
+            <div class="progresso-mes-container" id="progressoMesContainer" data-tooltip="Horas trabalhadas no mês" aria-label="Horas trabalhadas no mês">
                 <div class="progresso-mes-barra">
                     <div class="progresso-mes-fill" id="progressoMesFill" style="width: 0%"></div>
                 </div>

@@ -220,8 +220,8 @@ async function copiarParaEdocs(incluirObservacao) {
     mostrarModal(
         'Dados para colar no e-docs — ' + mes + '/' + ano,
         instrucoes + tabelaHtml,
-        '<button type="button" class="btn-secondary" onclick="fecharModal()">Fechar</button>' +
-        '<button type="button" class="btn-primary" onclick="_edocsCopiarDoModal()">Copiar dados</button>'
+        '<button type="button" class="btn btn-secondary" onclick="fecharModal()">Fechar</button>' +
+        '<button type="button" class="btn btn-primary" onclick="_edocsCopiarDoModal()">Copiar dados</button>'
     );
 }
 
