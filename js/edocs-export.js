@@ -93,13 +93,18 @@ async function copiarTextoParaAreaDeTransferencia(texto) {
     }
 }
 
-// Guarda o último texto gerado, pra o botão "Copiar novamente" do modal
-// não precisar embutir o texto inteiro dentro de um atributo HTML.
+// Guarda o último texto gerado (só horários, ou horários + observação —
+// sem a coluna Dia, que existe apenas na tabela de prévia), pro botão
+// "Copiar dados" do modal não precisar embutir o texto inteiro dentro de
+// um atributo HTML.
 let _edocsUltimoTexto = '';
 
-async function _edocsRecopiar() {
+async function _edocsCopiarDoModal() {
     const copiou = await copiarTextoParaAreaDeTransferencia(_edocsUltimoTexto);
-    mostrarNotificacao(copiou ? 'Copiado!' : 'Não foi possível copiar automaticamente.', copiou ? 'success' : 'error');
+    mostrarNotificacao(
+        copiou ? 'Dados copiados! Cole no e-docs com Ctrl+V.' : 'Não foi possível copiar automaticamente — tente novamente.',
+        copiou ? 'success' : 'error'
+    );
 }
 
 /**
@@ -139,22 +144,20 @@ async function copiarParaEdocs(incluirObservacao) {
         return;
     }
 
+    // Texto que vai pra área de transferência: só as colunas de horário
+    // (+ observação, se pedido) — sem a coluna Dia, que aparece apenas na
+    // tabela de prévia abaixo, como referência visual.
     const texto = montarTextoEdocs(resultado.dias, incluirObservacao);
     _edocsUltimoTexto = texto;
-    const copiou = await copiarTextoParaAreaDeTransferencia(texto);
 
     const tabelaHtml = montarTabelaPreviaEdocs(resultado.dias, incluirObservacao);
-    const instrucoes = '<p style="margin-bottom:12px;">' +
-        (copiou
-            ? 'Dados copiados! No e-docs, clique na primeira célula de horário do dia 1 (coluna "Entrada" do 1º Expediente) e cole com Ctrl+V.'
-            : 'Não consegui copiar automaticamente — use o botão "Copiar novamente" abaixo. Depois, no e-docs, clique na primeira célula de horário do dia 1 e cole com Ctrl+V.') +
-        '</p>';
+    const instrucoes = '<p style="margin-bottom:12px;">Confira os dados abaixo, clique em <strong>Copiar dados</strong> e depois, no e-docs, clique na primeira célula de horário do dia 1 (coluna "Entrada" do 1º Expediente) e cole com Ctrl+V.</p>';
 
     mostrarModal(
         'Dados para colar no e-docs — ' + mes + '/' + ano,
         instrucoes + tabelaHtml,
         '<button type="button" class="btn-secondary" onclick="fecharModal()">Fechar</button>' +
-        '<button type="button" class="btn-primary" onclick="_edocsRecopiar()">Copiar novamente</button>'
+        '<button type="button" class="btn-primary" onclick="_edocsCopiarDoModal()">Copiar dados</button>'
     );
 }
 
