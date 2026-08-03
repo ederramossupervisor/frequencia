@@ -39,6 +39,7 @@ async function buscarDadosEdocsAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes
 
 /**
  * Monta o texto TSV (separado por TAB) a partir dos dias retornados pela API.
+ * Usado como fallback em texto puro (text/plain) e como referência.
  * @param {Array} dias
  * @param {boolean} incluirObservacao - se true, inclui a 5ª coluna (Observações)
  */
@@ -47,7 +48,35 @@ function montarTextoEdocs(dias, incluirObservacao) {
         const colunas = [d.entradaManha || '', d.saidaManha || '', d.entradaTarde || '', d.saidaTarde || ''];
         if (incluirObservacao) colunas.push(d.observacao || '');
         return colunas.join('\t');
-    }).join('\n');
+    }).join('\r\n');
+}
+
+/**
+ * Monta uma tabela HTML "crua" (sem estilo, sem cabeçalho — só as linhas de
+ * dados), no mesmo formato que o Excel coloca na área de transferência ao
+ * copiar uma faixa de células. É essa versão HTML que faz o e-docs
+ * distribuir os valores célula por célula ao colar — colar só texto puro
+ * (TSV) faz ele jogar tudo bruto numa célula só, porque o campo do e-docs
+ * é uma tabela editável que só sabe "encaixar" quando recebe outra tabela
+ * HTML como origem.
+ * @param {Array} dias
+ * @param {boolean} incluirObservacao
+ */
+function montarHtmlTabelaEdocs(dias, incluirObservacao) {
+    function escapar(texto) {
+        return String(texto || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    const linhas = dias.map(function (d) {
+        const celulas = [d.entradaManha, d.saidaManha, d.entradaTarde, d.saidaTarde];
+        if (incluirObservacao) celulas.push(d.observacao);
+        return '<tr>' + celulas.map(function (c) { return '<td>' + escapar(c) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+
+    return '<table><tbody>' + linhas + '</tbody></table>';
 }
 
 /**
@@ -68,39 +97,74 @@ function montarTabelaPreviaEdocs(dias, incluirObservacao) {
 }
 
 /**
- * Copia um texto pra área de transferência, com fallback pra navegadores
- * ou contextos (ex: http sem SSL) onde a Clipboard API não funciona.
+ * Copia pra área de transferência tanto o texto puro (text/plain) quanto
+ * uma tabela HTML equivalente (text/html) — igual ao que o Excel faz ao
+ * copiar células. Isso é o que permite colar espalhando célula por célula
+ * em campos que só reconhecem tabela HTML de origem (como o e-docs).
+ * Cai pra texto puro se o navegador não suportar múltiplos formatos.
  */
-async function copiarTextoParaAreaDeTransferencia(texto) {
+async function copiarTabelaParaAreaDeTransferencia(textoPlano, htmlTabela) {
+    // Caminho principal: Clipboard API com os dois formatos (text/plain + text/html)
     try {
-        await navigator.clipboard.writeText(texto);
-        return true;
-    } catch (e) {
-        try {
-            const textarea = document.createElement('textarea');
-            textarea.value = texto;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
+        if (navigator.clipboard && window.ClipboardItem) {
+            const item = new ClipboardItem({
+                'text/plain': new Blob([textoPlano], { type: 'text/plain' }),
+                'text/html': new Blob([htmlTabela], { type: 'text/html' })
+            });
+            await navigator.clipboard.write([item]);
             return true;
-        } catch (e2) {
-            return false;
         }
+    } catch (e) {
+        console.warn('Falha ao copiar com ClipboardItem, tentando fallback:', e);
+    }
+
+    // Fallback 1: seleciona um <div> contenteditable com a mesma tabela e
+    // usa execCommand('copy') — isso também carrega a versão HTML da
+    // seleção, ao contrário de copiar de um <textarea> (que só leva texto).
+    try {
+        const div = document.createElement('div');
+        div.contentEditable = 'true';
+        div.style.position = 'fixed';
+        div.style.opacity = '0';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.innerHTML = htmlTabela;
+        document.body.appendChild(div);
+
+        const range = document.createRange();
+        range.selectNodeContents(div);
+        const selecao = window.getSelection();
+        selecao.removeAllRanges();
+        selecao.addRange(range);
+
+        const copiou = document.execCommand('copy');
+
+        selecao.removeAllRanges();
+        document.body.removeChild(div);
+
+        if (copiou) return true;
+    } catch (e2) {
+        console.warn('Falha no fallback de contenteditable:', e2);
+    }
+
+    // Fallback 2: só texto puro (último recurso)
+    try {
+        await navigator.clipboard.writeText(textoPlano);
+        return true;
+    } catch (e3) {
+        return false;
     }
 }
 
-// Guarda o último texto gerado (só horários, ou horários + observação —
-// sem a coluna Dia, que existe apenas na tabela de prévia), pro botão
-// "Copiar dados" do modal não precisar embutir o texto inteiro dentro de
+// Guarda o último texto/HTML gerados (só horários, ou horários +
+// observação — sem a coluna Dia, que existe apenas na tabela de prévia),
+// pro botão "Copiar dados" do modal não precisar embutir tudo dentro de
 // um atributo HTML.
 let _edocsUltimoTexto = '';
+let _edocsUltimoHtml = '';
 
 async function _edocsCopiarDoModal() {
-    const copiou = await copiarTextoParaAreaDeTransferencia(_edocsUltimoTexto);
+    const copiou = await copiarTabelaParaAreaDeTransferencia(_edocsUltimoTexto, _edocsUltimoHtml);
     mostrarNotificacao(
         copiou ? 'Dados copiados! Cole no e-docs com Ctrl+V.' : 'Não foi possível copiar automaticamente — tente novamente.',
         copiou ? 'success' : 'error'
@@ -144,11 +208,11 @@ async function copiarParaEdocs(incluirObservacao) {
         return;
     }
 
-    // Texto que vai pra área de transferência: só as colunas de horário
-    // (+ observação, se pedido) — sem a coluna Dia, que aparece apenas na
-    // tabela de prévia abaixo, como referência visual.
-    const texto = montarTextoEdocs(resultado.dias, incluirObservacao);
-    _edocsUltimoTexto = texto;
+    // Texto/HTML que vão pra área de transferência: só as colunas de
+    // horário (+ observação, se pedido) — sem a coluna Dia, que aparece
+    // apenas na tabela de prévia abaixo, como referência visual.
+    _edocsUltimoTexto = montarTextoEdocs(resultado.dias, incluirObservacao);
+    _edocsUltimoHtml = montarHtmlTabelaEdocs(resultado.dias, incluirObservacao);
 
     const tabelaHtml = montarTabelaPreviaEdocs(resultado.dias, incluirObservacao);
     const instrucoes = '<p style="margin-bottom:12px;">Confira os dados abaixo, clique em <strong>Copiar dados</strong> e depois, no e-docs, clique na primeira célula de horário do dia 1 (coluna "Entrada" do 1º Expediente) e cole com Ctrl+V.</p>';
