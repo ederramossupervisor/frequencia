@@ -63,6 +63,22 @@
                 </div>
                 <div class="header-actions">
                     <button id="pendingSyncBadge" class="pending-sync-badge hidden" title="Registros pendentes de confirmação"></button>
+                    <div class="pdf-menu-wrapper" id="pdfMenuWrapper">
+                        <button id="btnImprimirPdf" class="btn-toggle-tema" onclick="alternarMenuPdf(event)" title="Imprimir em PDF">
+                            <i class="fas fa-print"></i>
+                        </button>
+                        <div class="pdf-menu hidden" id="pdfMenu">
+                            <button type="button" class="pdf-menu-item" onclick="imprimirMesPDF('frequencia')">
+                                <i class="fas fa-clock"></i> Frequência
+                            </button>
+                            <button type="button" class="pdf-menu-item" onclick="imprimirMesPDF('acompanhamento')">
+                                <i class="fas fa-clipboard-list"></i> Acompanhamento
+                            </button>
+                            <button type="button" class="pdf-menu-item" onclick="imprimirMesPDF('ambas')">
+                                <i class="fas fa-copy"></i> Ambas as abas
+                            </button>
+                        </div>
+                    </div>
                     <button id="btnToggleTema" class="btn-toggle-tema" onclick="alternarTema()" title="Alternar tema claro/escuro">
                         <i class="fas fa-moon"></i>
                     </button>

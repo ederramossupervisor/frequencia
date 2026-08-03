@@ -1250,6 +1250,55 @@ input:focus, select:focus, textarea:focus {
     gap: 0.5rem;
 }
 
+.pdf-menu-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.pdf-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 100;
+    min-width: 190px;
+    background: var(--branco);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    padding: 0.35rem;
+}
+
+.pdf-menu.hidden {
+    display: none;
+}
+
+.pdf-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--preto);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transicao-rapida);
+}
+
+.pdf-menu-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--azul-es);
+}
+
+.pdf-menu-item:hover {
+    background: var(--azul-es-claro);
+}
+
 .btn-toggle-tema,
 .pending-sync-badge {
     background: rgba(255, 255, 255, 0.15);
