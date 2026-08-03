@@ -1700,3 +1700,40 @@ body[data-theme="dark"] .notification {
 body[data-theme="dark"] .modal {
     background: rgba(0, 0, 0, 0.7);
 }
+
+/* ============================================
+   PRÉVIA DOS DADOS PARA O E-DOCS (SEDU)
+   ============================================ */
+.edocs-preview-wrapper {
+    max-height: 55vh;
+    overflow: auto;
+    border: 1px solid var(--cinza-borda, #e0e0e0);
+    border-radius: 8px;
+}
+
+.edocs-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.edocs-preview-table th,
+.edocs-preview-table td {
+    padding: 0.4rem 0.55rem;
+    border-bottom: 1px solid var(--cinza-borda, #e0e0e0);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.edocs-preview-table th {
+    position: sticky;
+    top: 0;
+    background: var(--azul-es-claro, #eef4fb);
+    color: var(--preto);
+    z-index: 1;
+}
+
+.edocs-preview-table td:last-child {
+    white-space: normal;
+    min-width: 180px;
+}
