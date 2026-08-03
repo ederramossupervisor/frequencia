@@ -18,6 +18,13 @@
     --erro: #F44336;
     --alerta: #FF9800;
     --sombra: rgba(0, 150, 225, 0.1);
+
+    /* Verde musgo — usado em indicadores de status, ícones e no botão
+       "Bati o Ponto". Sem isso as regras que usam var(--verde-musgo)
+       ficam inválidas silenciosamente (sem cor/fundo nenhum). */
+    --verde-musgo: #556B2F;
+    --verde-musgo-escuro: #3E4F22;
+    --verde-musgo-claro: #8CA653;
     
     /* Transições */
     --transicao-rapida: all 0.2s ease;
@@ -273,6 +280,18 @@ select.form-control {
 
 .btn-block {
     width: 100%;
+}
+
+.btn-bater-ponto {
+    background: linear-gradient(135deg, var(--verde-musgo) 0%, #4a7c59 100%);
+    color: var(--branco);
+    font-size: 1.15rem;
+    padding: 1.1rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.btn-bater-ponto:hover {
+    background: linear-gradient(135deg, #4a7c59 0%, var(--verde-musgo) 100%);
 }
 
 .btn-sm {

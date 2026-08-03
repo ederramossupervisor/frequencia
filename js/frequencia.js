@@ -403,6 +403,13 @@ function carregarInterfaceFrequencia() {
                 <span class="badge badge-info">${dataExibicao}</span>
             </div>
             <div class="card-body">
+                <!-- Botão de destaque: preenche a hora atual no próximo -->
+                <!-- horário pendente do dia e já salva, tudo em um clique -->
+                <button type="button" class="btn btn-primary btn-block btn-bater-ponto" id="btnBaterPonto" onclick="baterPontoAgora()">
+                    <i class="fas fa-fingerprint"></i>
+                    Bati o Ponto
+                </button>
+
                 <!-- Seletor de Data -->
                 <div class="form-group">
                     <label class="form-label">
@@ -738,6 +745,47 @@ function limparFrequencia() {
         });
         calcularHoras();
     }
+}
+
+/**
+ * Botão de destaque "Bati o Ponto": preenche o PRÓXIMO horário pendente do
+ * dia de HOJE (entradaManha -> saidaManha -> entradaTarde -> saidaTarde,
+ * nessa ordem) com a hora atual e já salva em seguida — um único toque em
+ * vez de "Agora" + "Salvar".
+ *
+ * Sempre aponta pro dia de hoje, mesmo que a pessoa esteja com outro dia
+ * selecionado na tela no momento (evita registrar o ponto no dia errado).
+ */
+async function baterPontoAgora() {
+    const diaHoje = obterDiaAtual();
+    const mesHoje = obterMesAtual();
+
+    if (frequenciaState.mesAtual !== mesHoje) {
+        mostrarNotificacao('Vá para o mês atual para bater o ponto de hoje.', 'error', 4000);
+        return;
+    }
+
+    const selectDia = document.getElementById('selectDia');
+    if (selectDia && parseInt(selectDia.value, 10) !== diaHoje) {
+        selectDia.value = diaHoje;
+        frequenciaState.diaAtual = diaHoje;
+        carregarDadosDoDia(diaHoje);
+    }
+
+    const camposEmOrdem = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
+    const proximoCampo = camposEmOrdem.find(id => !obterValorCampoHora(id));
+
+    if (!proximoCampo) {
+        mostrarNotificacao('Os 4 horários de hoje já estão preenchidos.', 'info', 3000);
+        return;
+    }
+
+    preencherHoraAtual(proximoCampo);
+    await salvarFrequencia();
+}
+
+if (typeof window !== 'undefined') {
+    window.baterPontoAgora = baterPontoAgora;
 }
 
 async function salvarFrequencia() {
