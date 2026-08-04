@@ -853,6 +853,7 @@ function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
     const dataFim = new Date(dataInicio);
     dataFim.setDate(dataFim.getDate() + diasGozo - 1);
     const dataFimFormatada = `${String(dataFim.getDate()).padStart(2, '0')}/${String(dataFim.getMonth() + 1).padStart(2, '0')}/${dataFim.getFullYear()}`;
+    const dataFimISO = `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
     
     if (diasUteis.length === 0) {
         container.innerHTML = `
@@ -885,15 +886,19 @@ function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
     `;
     
     document.getElementById('btnAplicarFerias')?.addEventListener('click', () => {
-        aplicarFeriasCalculadas(diasUteis);
+        aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO);
     });
 }
 
 /**
  * Envia os dias calculados para o Apps Script, que grava o código FR
- * (coluna I) e 08:00 de horas justificadas (coluna J) em cada dia.
+ * (coluna I) e 08:00 de horas justificadas (coluna J) em cada dia, e
+ * também registra "dataInicio a dataFim - Férias" na(s) aba(s) de
+ * Acompanhamento tocada(s) pelo período — usado depois pela exportação
+ * pro e-docs pra marcar TODOS os dias do período (inclusive fins de
+ * semana e feriados) com "Férias" na Observação.
  */
-async function aplicarFeriasCalculadas(diasUteis) {
+async function aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO) {
     const config = carregarConfiguracoes();
     if (!config.sheetIdFrequencia) {
         mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
@@ -908,9 +913,13 @@ async function aplicarFeriasCalculadas(diasUteis) {
     
     const resultado = await aplicarFeriasAPI({
         sheetIdFrequencia: config.sheetIdFrequencia,
+        sheetIdAcompanhamento: config.sheetIdAcompanhamento,
         codigo: 'FR',
         horasPorDia: '08:00',
-        dias: diasUteis.map(d => ({ month: d.month, day: d.day }))
+        dias: diasUteis.map(d => ({ month: d.month, day: d.day })),
+        dataInicioFerias: dataInicio,
+        dataFimFerias: dataFimISO,
+        textoObservacao: 'Férias'
     });
     
     if (resultado && resultado.success) {
@@ -948,6 +957,11 @@ async function aplicarFeriasAPI(dados) {
             horasPorDia: dados.horasPorDia,
             dias: dados.dias
         };
+
+        if (dados.sheetIdAcompanhamento) dadosEnvio.sheetIdAcompanhamento = dados.sheetIdAcompanhamento;
+        if (dados.dataInicioFerias) dadosEnvio.dataInicioFerias = dados.dataInicioFerias;
+        if (dados.dataFimFerias) dadosEnvio.dataFimFerias = dados.dataFimFerias;
+        if (dados.textoObservacao) dadosEnvio.textoObservacao = dados.textoObservacao;
         
         return await enviarParaAppsScript(dadosEnvio);
         
