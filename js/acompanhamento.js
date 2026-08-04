@@ -850,7 +850,13 @@ function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
     if (!container) return;
     
     const [anoI, mesI, diaI] = dataInicio.split('-');
-    const dataFim = new Date(dataInicio);
+    // IMPORTANTE: new Date("YYYY-MM-DD") interpreta a string como UTC meia-noite.
+    // Em fusos negativos (como o do Brasil), isso "puxa" a data um dia pra trás
+    // ao ler de volta com getDate()/getMonth() (que são hora local) — foi o que
+    // causou o período aparecer terminando um dia antes do correto. Construindo
+    // com (ano, mês, dia) numéricos, o Date já nasce em horário local e não sofre
+    // esse deslocamento — mesmo padrão que calcularDiasFerias() já usa.
+    const dataFim = new Date(Number(anoI), Number(mesI) - 1, Number(diaI));
     dataFim.setDate(dataFim.getDate() + diasGozo - 1);
     const dataFimFormatada = `${String(dataFim.getDate()).padStart(2, '0')}/${String(dataFim.getMonth() + 1).padStart(2, '0')}/${dataFim.getFullYear()}`;
     const dataFimISO = `${dataFim.getFullYear()}-${String(dataFim.getMonth() + 1).padStart(2, '0')}-${String(dataFim.getDate()).padStart(2, '0')}`;
