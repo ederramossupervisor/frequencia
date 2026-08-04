@@ -126,6 +126,47 @@ async function selecionarUsuario(nome) {
 }
 
 /**
+ * Rebusca os dados do usuário JÁ selecionado na planilha central e
+ * atualiza a cópia local — sem passar pela tela de seleção. É o que
+ * resolve o caso de cadastrar um feriado num aparelho e não ver refletido
+ * em outro: sem isso, cada aparelho só buscava a planilha central uma
+ * vez, no login, e nunca mais.
+ *
+ * @param {boolean} silencioso - se true, não mostra notificação de
+ *   sucesso (usado na sincronização automática ao abrir o app); se
+ *   false, avisa o resultado (usado no botão manual "Sincronizar agora").
+ */
+async function sincronizarUsuarioAtual(silencioso) {
+    const nome = obterUsuarioAtual();
+    if (!nome) return { success: false, error: 'Nenhum usuário selecionado' };
+
+    const resultado = await obterUsuarioAPI(nome);
+    if (!resultado.success) {
+        if (!silencioso && typeof mostrarNotificacao === 'function') {
+            mostrarNotificacao('Não foi possível sincronizar: ' + (resultado.error || 'falha desconhecida'), 'error');
+        }
+        return resultado;
+    }
+
+    salvarConfiguracoes({
+        sheetIdFrequencia: resultado.sheetIdFrequencia,
+        sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
+    });
+    salvarFeriadosConfigurados(resultado.feriados || []);
+
+    // Se a tela de Configurações estiver aberta, atualiza a lista de
+    // feriados na hora, sem precisar trocar de aba.
+    if (typeof renderizarListaFeriados === 'function') renderizarListaFeriados();
+    if (typeof atualizarCalculoDiasUteis === 'function') atualizarCalculoDiasUteis();
+
+    if (!silencioso && typeof mostrarNotificacao === 'function') {
+        mostrarNotificacao('Dados sincronizados com a planilha central', 'success', 2000);
+    }
+
+    return { success: true };
+}
+
+/**
  * Limpa o usuário selecionado (usado em "Trocar de usuário"), sem apagar
  * o resto — a tela de seleção volta a aparecer no próximo carregamento.
  */
@@ -208,6 +249,7 @@ if (typeof window !== 'undefined') {
     window.adicionarFeriadoUsuarioAPI = adicionarFeriadoUsuarioAPI;
     window.removerFeriadoUsuarioAPI = removerFeriadoUsuarioAPI;
     window.selecionarUsuario = selecionarUsuario;
+    window.sincronizarUsuarioAtual = sincronizarUsuarioAtual;
     window.limparUsuarioSelecionado = limparUsuarioSelecionado;
     window.exibirSeletorUsuario = exibirSeletorUsuario;
 }

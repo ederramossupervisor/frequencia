@@ -40,6 +40,10 @@ function carregarInterfaceConfiguracoes() {
             </div>
             <div class="card-body">
                 <p class="mb-2">Conectado como: <strong id="nomeUsuarioAtual">${(typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || 'não identificado'}</strong></p>
+                <button class="btn btn-secondary" id="btnSincronizarUsuario">
+                    <i class="fas fa-rotate"></i>
+                    Sincronizar agora
+                </button>
                 <button class="btn btn-secondary" id="btnTrocarUsuario">
                     <i class="fas fa-right-left"></i>
                     Trocar de usuário
@@ -560,6 +564,22 @@ function configurarEventListenersConfiguracoes() {
     document.getElementById('btnTrocarUsuario')?.addEventListener('click', () => {
         if (typeof limparUsuarioSelecionado === 'function') limparUsuarioSelecionado();
         if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
+    });
+
+    // Sincronizar agora (rebusca planilhas/feriados do usuário atual na
+    // planilha central, sem precisar trocar de usuário)
+    document.getElementById('btnSincronizarUsuario')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget;
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sincronizando...';
+
+        if (typeof sincronizarUsuarioAtual === 'function') {
+            await sincronizarUsuarioAtual(false);
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
     });
 
     // Feriados personalizados

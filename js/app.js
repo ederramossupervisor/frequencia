@@ -33,6 +33,15 @@ function initApp() {
     }
 
     setTimeout(esconderSplashScreen, 2000);
+
+    // Rebusca planilhas/feriados na planilha central de Usuários toda vez
+    // que o app abre — sem isso, um feriado adicionado em outro aparelho
+    // (ex: celular) nunca aparecia aqui, porque a busca só acontecia uma
+    // vez, no login. Roda em paralelo, sem travar a abertura do app; se
+    // estiver offline, continua com o que já tinha localmente.
+    if (typeof sincronizarUsuarioAtual === 'function') {
+        sincronizarUsuarioAtual(true);
+    }
     
     // Configura data atual no cabeçalho
     atualizarDataAtual();
