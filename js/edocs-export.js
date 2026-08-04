@@ -38,6 +38,18 @@ async function buscarDadosEdocsAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes
 }
 
 /**
+ * Valor de uma célula de horário: usa o horário lançado se houver; se não
+ * houver E o dia cair em sábado/domingo, usa "--" (igual ao modelo do
+ * e-docs); em dia de semana sem lançamento, fica em branco mesmo — "--"
+ * só é aplicado em fim de semana, pra não mascarar um dia útil que ainda
+ * está faltando preencher.
+ */
+function valorHorarioEdocs(valor, fimDeSemana) {
+    if (valor) return valor;
+    return fimDeSemana ? '--' : '';
+}
+
+/**
  * Monta o texto TSV (separado por TAB) a partir dos dias retornados pela API.
  * Usado como fallback em texto puro (text/plain) e como referência.
  * @param {Array} dias
@@ -45,20 +57,29 @@ async function buscarDadosEdocsAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes
  */
 function montarTextoEdocs(dias, incluirObservacao) {
     return dias.map(function (d) {
-        const colunas = [d.entradaManha || '', d.saidaManha || '', d.entradaTarde || '', d.saidaTarde || ''];
+        const colunas = [
+            valorHorarioEdocs(d.entradaManha, d.fimDeSemana),
+            valorHorarioEdocs(d.saidaManha, d.fimDeSemana),
+            valorHorarioEdocs(d.entradaTarde, d.fimDeSemana),
+            valorHorarioEdocs(d.saidaTarde, d.fimDeSemana)
+        ];
         if (incluirObservacao) colunas.push(d.observacao || '');
         return colunas.join('\t');
     }).join('\r\n');
 }
 
 /**
- * Monta uma tabela HTML "crua" (sem estilo, sem cabeçalho — só as linhas de
- * dados), no mesmo formato que o Excel coloca na área de transferência ao
- * copiar uma faixa de células. É essa versão HTML que faz o e-docs
- * distribuir os valores célula por célula ao colar — colar só texto puro
- * (TSV) faz ele jogar tudo bruto numa célula só, porque o campo do e-docs
- * é uma tabela editável que só sabe "encaixar" quando recebe outra tabela
- * HTML como origem.
+ * Monta uma tabela HTML "crua" (sem cabeçalho — só as linhas de dados), no
+ * mesmo formato que o Excel coloca na área de transferência ao copiar uma
+ * faixa de células. É essa versão HTML que faz o e-docs distribuir os
+ * valores célula por célula ao colar — colar só texto puro (TSV) faz ele
+ * jogar tudo bruto numa célula só, porque o campo do e-docs é uma tabela
+ * editável que só sabe "encaixar" quando recebe outra tabela HTML como
+ * origem.
+ *
+ * As células de horário saem com fonte 10pt e texto centralizado; a de
+ * observação sai com fonte 10pt e alinhada à esquerda (texto livre mais
+ * longo não fica legal centralizado).
  * @param {Array} dias
  * @param {boolean} incluirObservacao
  */
@@ -70,10 +91,21 @@ function montarHtmlTabelaEdocs(dias, incluirObservacao) {
             .replace(/>/g, '&gt;');
     }
 
+    const estiloHorario = 'font-size:10pt;text-align:center;';
+    const estiloObservacao = 'font-size:10pt;text-align:left;';
+
     const linhas = dias.map(function (d) {
-        const celulas = [d.entradaManha, d.saidaManha, d.entradaTarde, d.saidaTarde];
-        if (incluirObservacao) celulas.push(d.observacao);
-        return '<tr>' + celulas.map(function (c) { return '<td>' + escapar(c) + '</td>'; }).join('') + '</tr>';
+        const horarios = [
+            valorHorarioEdocs(d.entradaManha, d.fimDeSemana),
+            valorHorarioEdocs(d.saidaManha, d.fimDeSemana),
+            valorHorarioEdocs(d.entradaTarde, d.fimDeSemana),
+            valorHorarioEdocs(d.saidaTarde, d.fimDeSemana)
+        ];
+        let celulas = horarios.map(function (c) { return '<td style="' + estiloHorario + '">' + escapar(c) + '</td>'; }).join('');
+        if (incluirObservacao) {
+            celulas += '<td style="' + estiloObservacao + '">' + escapar(d.observacao) + '</td>';
+        }
+        return '<tr>' + celulas + '</tr>';
     }).join('');
 
     return '<table><tbody>' + linhas + '</tbody></table>';
@@ -88,7 +120,13 @@ function montarTabelaPreviaEdocs(dias, incluirObservacao) {
         : '<tr><th>Dia</th><th>Ent. Manhã</th><th>Saí. Manhã</th><th>Ent. Tarde</th><th>Saí. Tarde</th></tr>';
 
     const linhas = dias.map(function (d) {
-        const celulas = [d.dia, d.entradaManha || '--', d.saidaManha || '--', d.entradaTarde || '--', d.saidaTarde || '--'];
+        const celulas = [
+            d.dia,
+            valorHorarioEdocs(d.entradaManha, d.fimDeSemana) || '·',
+            valorHorarioEdocs(d.saidaManha, d.fimDeSemana) || '·',
+            valorHorarioEdocs(d.entradaTarde, d.fimDeSemana) || '·',
+            valorHorarioEdocs(d.saidaTarde, d.fimDeSemana) || '·'
+        ];
         if (incluirObservacao) celulas.push(d.observacao || '');
         return '<tr>' + celulas.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>';
     }).join('');
