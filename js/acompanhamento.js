@@ -898,11 +898,12 @@ function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
 
 /**
  * Envia os dias calculados para o Apps Script, que grava o código FR
- * (coluna I) e 08:00 de horas justificadas (coluna J) em cada dia, e
- * também registra "dataInicio a dataFim - Férias" na(s) aba(s) de
- * Acompanhamento tocada(s) pelo período — usado depois pela exportação
- * pro e-docs pra marcar TODOS os dias do período (inclusive fins de
- * semana e feriados) com "Férias" na Observação.
+ * (só na coluna I — a planilha já deduz 8h automaticamente com o FR,
+ * sem precisar gravar nada na coluna de horas) em cada dia, e também
+ * registra "dataInicio a dataFim - Férias" na(s) aba(s) de Acompanhamento
+ * tocada(s) pelo período — usado depois pela exportação pro e-docs pra
+ * marcar TODOS os dias do período (inclusive fins de semana e feriados)
+ * com "Férias" na Observação.
  */
 async function aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO) {
     const config = carregarConfiguracoes();
@@ -921,7 +922,6 @@ async function aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO) {
         sheetIdFrequencia: config.sheetIdFrequencia,
         sheetIdAcompanhamento: config.sheetIdAcompanhamento,
         codigo: 'FR',
-        horasPorDia: '08:00',
         dias: diasUteis.map(d => ({ month: d.month, day: d.day })),
         dataInicioFerias: dataInicio,
         dataFimFerias: dataFimISO,
@@ -960,7 +960,6 @@ async function aplicarFeriasAPI(dados) {
             operation: 'aplicarFerias',
             sheetIdFrequencia: dados.sheetIdFrequencia,
             codigo: dados.codigo,
-            horasPorDia: dados.horasPorDia,
             dias: dados.dias
         };
 
