@@ -22,6 +22,16 @@ function mudarParaAba(aba) {
  */
 function initApp() {
     console.log('🚀 Inicializando Controle de Frequência...');
+
+    // Se ainda não escolheu quem é, mostra o seletor e não segue com o
+    // resto da inicialização — as planilhas/feriados dessa pessoa ainda
+    // não foram carregados.
+    if (typeof obterUsuarioAtual === 'function' && !obterUsuarioAtual()) {
+        esconderSplashScreen();
+        if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
+        return;
+    }
+
     setTimeout(esconderSplashScreen, 2000);
     
     // Configura data atual no cabeçalho

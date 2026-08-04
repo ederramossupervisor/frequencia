@@ -10,6 +10,13 @@ const CONFIG = {
         FREQUENCIA: "1ZySSwFVpWmYBfumdndJvIQMswqOzhYI2FyNs2uSIZiA",
         ACOMPANHAMENTO: "1tYecexGyRKpAMYQJwkSwPVVvZY0NbATp8vJbn1X_Xsw"
     },
+
+    // Planilha central de usuários — colunas: Nome | Link Frequência |
+    // Link Acompanhamento | Feriados. É de onde o app busca, pelo nome
+    // escolhido na tela inicial, os IDs das duas planilhas da pessoa e os
+    // feriados cadastrados por ela (substitui o que antes ficava só no
+    // localStorage do navegador).
+    SHEET_ID_USUARIOS: "1lO6qdy3VJeb3MEfYiso26BjNKFNQu7UBqw3On3a1f9E",
     
     // Lista de meses para os dropdowns
     MESES: [
@@ -38,7 +45,8 @@ const CONFIG = {
         FREQUENCIA_SHEET_ID: "frequencia_sheet_id",
         ACOMPANHAMENTO_SHEET_ID: "acompanhamento_sheet_id",
         USER_SETTINGS: "user_settings",
-        FERIADOS: "feriados_personalizados"
+        FERIADOS: "feriados_personalizados",
+        USUARIO_NOME: "usuario_nome_selecionado"
     },
     
     // Configurações do app

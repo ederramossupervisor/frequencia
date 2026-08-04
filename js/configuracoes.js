@@ -31,6 +31,21 @@ function carregarInterfaceConfiguracoes() {
     }
     
     container.innerHTML = `
+        <div class="card mb-3" id="cardUsuarioAtual">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-user-circle"></i>
+                    Usuário
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">Conectado como: <strong id="nomeUsuarioAtual">${(typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || 'não identificado'}</strong></p>
+                <button class="btn btn-secondary" id="btnTrocarUsuario">
+                    <i class="fas fa-right-left"></i>
+                    Trocar de usuário
+                </button>
+            </div>
+        </div>
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
             <div class="card">
@@ -440,6 +455,10 @@ function removerFeriado(data) {
     renderizarListaFeriados();
     atualizarCalculoDiasUteis();
     mostrarNotificacao('Feriado removido', 'success', 1500);
+
+    if (typeof removerFeriadoUsuarioAPI === 'function' && typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) {
+        removerFeriadoUsuarioAPI(data);
+    }
 }
 
 /**
@@ -537,10 +556,16 @@ function adicionarEstilosConfiguracoes() {
  * Configura os event listeners da aba configurações
  */
 function configurarEventListenersConfiguracoes() {
+    // Trocar de usuário
+    document.getElementById('btnTrocarUsuario')?.addEventListener('click', () => {
+        if (typeof limparUsuarioSelecionado === 'function') limparUsuarioSelecionado();
+        if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
+    });
+
     // Feriados personalizados
     const btnAdicionarFeriado = document.getElementById('btnAdicionarFeriado');
     if (btnAdicionarFeriado) {
-        btnAdicionarFeriado.addEventListener('click', () => {
+        btnAdicionarFeriado.addEventListener('click', async () => {
             const dataInput = document.getElementById('novoFeriadoData');
             const descInput = document.getElementById('novoFeriadoDescricao');
             const data = dataInput?.value;
@@ -557,6 +582,10 @@ function configurarEventListenersConfiguracoes() {
                 return;
             }
             
+            // Atualiza local na hora (resposta rápida na tela) e também
+            // grava na planilha central de Usuários, se houver um usuário
+            // selecionado — assim o feriado fica disponível em qualquer
+            // aparelho que essa pessoa usar depois.
             feriados.push({ data, descricao: descricao || 'Feriado' });
             salvarFeriadosConfigurados(feriados);
             renderizarListaFeriados();
@@ -566,6 +595,10 @@ function configurarEventListenersConfiguracoes() {
             if (descInput) descInput.value = '';
             
             mostrarNotificacao('Feriado adicionado', 'success', 1500);
+
+            if (typeof adicionarFeriadoUsuarioAPI === 'function' && typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) {
+                adicionarFeriadoUsuarioAPI(data, descricao || 'Feriado');
+            }
         });
     }
     
