@@ -1861,3 +1861,52 @@ body[data-theme="dark"] .modal {
     font-size: 0.82rem;
     text-align: left;
 }
+
+/* ============================================
+   CADASTRO NA TELA DE SELEÇÃO DE USUÁRIO
+   ============================================ */
+.seletor-usuario-link {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--azul-es);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.4rem;
+}
+
+.seletor-usuario-cadastro {
+    text-align: left;
+}
+
+.seletor-usuario-cadastro hr {
+    border: none;
+    border-top: 1px solid var(--cinza-claro);
+    margin: 1rem 0;
+}
+
+.seletor-usuario-tabs {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.seletor-usuario-tab {
+    flex: 1;
+    background: var(--cinza-claro);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--cinza-escuro);
+    cursor: pointer;
+    transition: var(--transicao-rapida);
+}
+
+.seletor-usuario-tab.active {
+    background: var(--azul-es);
+    color: var(--branco);
+}

@@ -14,6 +14,58 @@
 // digitado à mão.
 
 /**
+ * Cadastra uma pessoa nova usando links de planilhas que ela já tinha.
+ * GET (não POST) de propósito, igual as outras leituras — pra ter
+ * confirmação de verdade do resultado.
+ */
+async function criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'criarUsuario',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            nome: nome,
+            linkFrequencia: linkFrequencia,
+            linkAcompanhamento: linkAcompanhamento
+        });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Cadastra uma pessoa nova copiando os templates de Frequência e
+ * Acompanhamento pra ela (uma cópia nova de cada). Se um e-mail for
+ * informado, as cópias são compartilhadas com esse e-mail como editor.
+ */
+async function criarUsuarioComTemplatesAPI(nome, email) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'criarUsuarioComTemplates',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            nome: nome,
+            templateIdFrequencia: CONFIG.TEMPLATE_IDS.FREQUENCIA,
+            templateIdAcompanhamento: CONFIG.TEMPLATE_IDS.ACOMPANHAMENTO
+        });
+        if (email) params.set('email', email);
+
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Nome do usuário atualmente selecionado neste aparelho/navegador (só o
  * nome fica salvo localmente — o resto vem da planilha central a cada
  * login).
@@ -198,6 +250,40 @@ async function exibirSeletorUsuario() {
             <button id="seletorUsuarioBtn" class="btn btn-primary mt-3" disabled>
                 <i class="fas fa-arrow-right"></i> Entrar
             </button>
+
+            <button id="btnMostrarCadastro" class="seletor-usuario-link mt-3">
+                Ainda não tenho cadastro
+            </button>
+
+            <div id="seletorUsuarioCadastro" class="seletor-usuario-cadastro hidden">
+                <hr>
+                <p class="text-muted mb-2">Seu nome:</p>
+                <input type="text" id="cadastroNome" class="form-control" placeholder="Nome completo">
+
+                <div class="seletor-usuario-tabs mt-3">
+                    <button type="button" class="seletor-usuario-tab active" data-modo="templates">Criar minhas planilhas</button>
+                    <button type="button" class="seletor-usuario-tab" data-modo="links">Já tenho as planilhas</button>
+                </div>
+
+                <div id="cadastroModoTemplates">
+                    <p class="text-muted mt-2 mb-2">
+                        O app cria, pra você, uma cópia nova de cada planilha (Frequência e Acompanhamento) a partir do template.
+                    </p>
+                    <input type="email" id="cadastroEmail" class="form-control" placeholder="Seu e-mail do Google (opcional, pra você também poder abrir as planilhas)">
+                </div>
+
+                <div id="cadastroModoLinks" class="hidden">
+                    <p class="text-muted mt-2 mb-2">Cole os links completos das suas planilhas:</p>
+                    <input type="url" id="cadastroLinkFrequencia" class="form-control mb-2" placeholder="Link da planilha de Frequência">
+                    <input type="url" id="cadastroLinkAcompanhamento" class="form-control" placeholder="Link da planilha de Acompanhamento">
+                </div>
+
+                <div id="seletorUsuarioCadastroErro" class="seletor-usuario-erro hidden mt-2"></div>
+
+                <button id="btnCadastrar" class="btn btn-primary mt-3">
+                    <i class="fas fa-user-plus"></i> Cadastrar e entrar
+                </button>
+            </div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -210,34 +296,116 @@ async function exibirSeletorUsuario() {
 
     if (!resultado.success || !resultado.usuarios || resultado.usuarios.length === 0) {
         select.innerHTML = `<option value="">Nenhum usuário encontrado</option>`;
-        divErro.textContent = resultado.error || 'A planilha de Usuários está vazia — cadastre uma linha com seu nome e os links das suas planilhas.';
+        select.disabled = true;
+        divErro.textContent = resultado.error || 'Ainda não há ninguém cadastrado — use "Ainda não tenho cadastro" abaixo pra ser a primeira pessoa.';
         divErro.classList.remove('hidden');
-        return;
+    } else {
+        select.innerHTML = `<option value="">Selecione...</option>` +
+            resultado.usuarios.map(nome => `<option value="${nome}">${nome}</option>`).join('');
+
+        select.addEventListener('change', () => {
+            btnEntrar.disabled = !select.value;
+            divErro.classList.add('hidden');
+        });
+
+        btnEntrar.addEventListener('click', async () => {
+            if (!select.value) return;
+
+            btnEntrar.disabled = true;
+            btnEntrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+
+            const resultadoSelecao = await selecionarUsuario(select.value);
+
+            if (resultadoSelecao.success) {
+                location.reload();
+            } else {
+                divErro.textContent = resultadoSelecao.error || 'Não foi possível carregar os dados desse usuário.';
+                divErro.classList.remove('hidden');
+                btnEntrar.disabled = false;
+                btnEntrar.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar';
+            }
+        });
     }
 
-    select.innerHTML = `<option value="">Selecione...</option>` +
-        resultado.usuarios.map(nome => `<option value="${nome}">${nome}</option>`).join('');
+    // --- Seção de cadastro ---
+    const btnMostrarCadastro = document.getElementById('btnMostrarCadastro');
+    const painelCadastro = document.getElementById('seletorUsuarioCadastro');
+    const tabs = overlay.querySelectorAll('.seletor-usuario-tab');
+    const painelTemplates = document.getElementById('cadastroModoTemplates');
+    const painelLinks = document.getElementById('cadastroModoLinks');
+    const divErroCadastro = document.getElementById('seletorUsuarioCadastroErro');
+    const btnCadastrar = document.getElementById('btnCadastrar');
+    let modoCadastro = 'templates';
 
-    select.addEventListener('change', () => {
-        btnEntrar.disabled = !select.value;
-        divErro.classList.add('hidden');
+    btnMostrarCadastro.addEventListener('click', () => {
+        painelCadastro.classList.toggle('hidden');
+        btnMostrarCadastro.textContent = painelCadastro.classList.contains('hidden')
+            ? 'Ainda não tenho cadastro'
+            : 'Já tenho cadastro — voltar pra seleção';
     });
 
-    btnEntrar.addEventListener('click', async () => {
-        if (!select.value) return;
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            modoCadastro = tab.dataset.modo;
+            painelTemplates.classList.toggle('hidden', modoCadastro !== 'templates');
+            painelLinks.classList.toggle('hidden', modoCadastro !== 'links');
+            divErroCadastro.classList.add('hidden');
+        });
+    });
 
-        btnEntrar.disabled = true;
-        btnEntrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+    btnCadastrar.addEventListener('click', async () => {
+        const nome = document.getElementById('cadastroNome').value.trim();
+        if (!nome) {
+            divErroCadastro.textContent = 'Informe seu nome';
+            divErroCadastro.classList.remove('hidden');
+            return;
+        }
 
-        const resultadoSelecao = await selecionarUsuario(select.value);
+        btnCadastrar.disabled = true;
+        divErroCadastro.classList.add('hidden');
+
+        let resultadoCriacao;
+
+        if (modoCadastro === 'templates') {
+            const email = document.getElementById('cadastroEmail').value.trim();
+            btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando suas planilhas...';
+            resultadoCriacao = await criarUsuarioComTemplatesAPI(nome, email);
+        } else {
+            const linkFrequencia = document.getElementById('cadastroLinkFrequencia').value.trim();
+            const linkAcompanhamento = document.getElementById('cadastroLinkAcompanhamento').value.trim();
+            if (!linkFrequencia || !linkAcompanhamento) {
+                divErroCadastro.textContent = 'Cole os dois links';
+                divErroCadastro.classList.remove('hidden');
+                btnCadastrar.disabled = false;
+                return;
+            }
+            btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cadastrando...';
+            resultadoCriacao = await criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento);
+        }
+
+        if (!resultadoCriacao.success) {
+            divErroCadastro.textContent = resultadoCriacao.error || 'Não foi possível cadastrar. Tente de novo.';
+            divErroCadastro.classList.remove('hidden');
+            btnCadastrar.disabled = false;
+            btnCadastrar.innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar e entrar';
+            return;
+        }
+
+        btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+        const resultadoSelecao = await selecionarUsuario(nome);
 
         if (resultadoSelecao.success) {
             location.reload();
         } else {
-            divErro.textContent = resultadoSelecao.error || 'Não foi possível carregar os dados desse usuário.';
-            divErro.classList.remove('hidden');
-            btnEntrar.disabled = false;
-            btnEntrar.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar';
+            // O cadastro em si já deu certo (a linha existe na planilha);
+            // isso aqui só falharia numa falha de rede pontual — vale
+            // tentar de novo.
+            divErroCadastro.textContent = 'Cadastro criado, mas não consegui carregar seus dados agora. Tente entrar de novo.';
+            divErroCadastro.classList.remove('hidden');
+            btnCadastrar.disabled = false;
+            btnCadastrar.innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar e entrar';
         }
     });
 }
@@ -246,6 +414,8 @@ if (typeof window !== 'undefined') {
     window.obterUsuarioAtual = obterUsuarioAtual;
     window.listarUsuariosAPI = listarUsuariosAPI;
     window.obterUsuarioAPI = obterUsuarioAPI;
+    window.criarUsuarioAPI = criarUsuarioAPI;
+    window.criarUsuarioComTemplatesAPI = criarUsuarioComTemplatesAPI;
     window.adicionarFeriadoUsuarioAPI = adicionarFeriadoUsuarioAPI;
     window.removerFeriadoUsuarioAPI = removerFeriadoUsuarioAPI;
     window.selecionarUsuario = selecionarUsuario;
