@@ -14,6 +14,63 @@
 // digitado à mão.
 
 /**
+ * Busca o cabeçalho (Nome, Nº Funcional, Horário de Trabalho, Carga
+ * Horária/Dia) já preenchido numa aba de mês existente — pra
+ * pré-carregar o card "Meus Dados" em Configurações.
+ */
+async function obterMeusDadosAPI(sheetIdFrequencia) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({ action: 'obterMeusDados', sheetIdFrequencia: sheetIdFrequencia || '' });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Grava o cabeçalho (Nome, Nº Funcional, Horário de Trabalho, Carga
+ * Horária/Dia) em todas as abas de mês das duas planilhas do usuário
+ * atual. GET de propósito — mexe em até 24 abas de uma vez, então a
+ * confirmação real de sucesso importa mais aqui do que no resto do app.
+ * @param {{nome: string, numeroFuncional: string, horarioTrabalho: string, cargaHorariaDia: string}} dados
+ * @param {{sheetIdFrequencia: string, sheetIdAcompanhamento: string}} [sheetIds] - opcional; se
+ *   não vier, usa carregarConfiguracoes() (o usuário atual).
+ */
+async function gravarMeusDadosAPI(dados, sheetIds) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+
+        const ids = sheetIds || carregarConfiguracoes();
+        if (!ids.sheetIdFrequencia) {
+            return { success: false, error: 'Planilha de Frequência não configurada' };
+        }
+
+        const params = new URLSearchParams({
+            action: 'gravarMeusDados',
+            sheetIdFrequencia: ids.sheetIdFrequencia,
+            nome: dados.nome || '',
+            numeroFuncional: dados.numeroFuncional || '',
+            horarioTrabalho: dados.horarioTrabalho || '',
+            cargaHorariaDia: dados.cargaHorariaDia || ''
+        });
+        if (ids.sheetIdAcompanhamento) params.set('sheetIdAcompanhamento', ids.sheetIdAcompanhamento);
+
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Cadastra uma pessoa nova usando links de planilhas que ela já tinha.
  * GET (não POST) de propósito, igual as outras leituras — pra ter
  * confirmação de verdade do resultado.
@@ -278,6 +335,21 @@ async function exibirSeletorUsuario() {
                     <input type="url" id="cadastroLinkAcompanhamento" class="form-control" placeholder="Link da planilha de Acompanhamento">
                 </div>
 
+                <hr>
+                <p class="text-muted mb-2">Pra já preencher o cabeçalho das suas planilhas:</p>
+                <input type="text" id="cadastroNumeroFuncional" class="form-control mb-2" placeholder="Nº Funcional">
+                <input type="text" id="cadastroHorarioTrabalho" class="form-control mb-2" placeholder="Horário de Trabalho (ex: 8h - 17h)">
+                <select id="cadastroCargaHoraria" class="form-control">
+                    <option value="">Carga Horária/Dia...</option>
+                    <option value="8:00">8:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="7:00">7:00</option>
+                    <option value="6:00">6:00</option>
+                    <option value="5:00">5:00</option>
+                    <option value="4:00">4:00</option>
+                    <option value="8:48">8:48</option>
+                </select>
+
                 <div id="seletorUsuarioCadastroErro" class="seletor-usuario-erro hidden mt-2"></div>
 
                 <button id="btnCadastrar" class="btn btn-primary mt-3">
@@ -397,6 +469,19 @@ async function exibirSeletorUsuario() {
         const resultadoSelecao = await selecionarUsuario(nome);
 
         if (resultadoSelecao.success) {
+            // Grava o cabeçalho (Nº Funcional, Horário, Carga Horária) nas
+            // 12 abas — feito depois do login pra já ter os sheetIds
+            // carregados. Se falhar, não impede a entrada: a pessoa pode
+            // preencher depois em Configurações > Meus Dados.
+            const numeroFuncional = document.getElementById('cadastroNumeroFuncional').value.trim();
+            const horarioTrabalho = document.getElementById('cadastroHorarioTrabalho').value.trim();
+            const cargaHorariaDia = document.getElementById('cadastroCargaHoraria').value;
+
+            if (numeroFuncional || horarioTrabalho || cargaHorariaDia) {
+                btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preenchendo suas planilhas...';
+                await gravarMeusDadosAPI({ nome, numeroFuncional, horarioTrabalho, cargaHorariaDia });
+            }
+
             location.reload();
         } else {
             // O cadastro em si já deu certo (a linha existe na planilha);
@@ -412,6 +497,8 @@ async function exibirSeletorUsuario() {
 
 if (typeof window !== 'undefined') {
     window.obterUsuarioAtual = obterUsuarioAtual;
+    window.obterMeusDadosAPI = obterMeusDadosAPI;
+    window.gravarMeusDadosAPI = gravarMeusDadosAPI;
     window.listarUsuariosAPI = listarUsuariosAPI;
     window.obterUsuarioAPI = obterUsuarioAPI;
     window.criarUsuarioAPI = criarUsuarioAPI;

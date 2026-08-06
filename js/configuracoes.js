@@ -50,6 +50,47 @@ function carregarInterfaceConfiguracoes() {
                 </button>
             </div>
         </div>
+        <div class="card mb-3" id="cardMeusDados">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-id-card"></i>
+                    Meus Dados
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">Preenche o cabeçalho (Nome, Nº Funcional, Horário de Trabalho e Carga Horária/Dia) em todas as 12 abas das suas duas planilhas de uma vez.</p>
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="meusDadosNome" class="form-control" placeholder="Nome completo">
+                </div>
+                <div class="form-group">
+                    <label>Nº Funcional</label>
+                    <input type="text" id="meusDadosNumeroFuncional" class="form-control" placeholder="Nº Funcional">
+                </div>
+                <div class="form-group">
+                    <label>Horário de Trabalho</label>
+                    <input type="text" id="meusDadosHorarioTrabalho" class="form-control" placeholder="ex: 8h - 17h">
+                </div>
+                <div class="form-group">
+                    <label>Carga Horária/Dia</label>
+                    <select id="meusDadosCargaHoraria" class="form-control">
+                        <option value="">Selecione...</option>
+                        <option value="8:00">8:00</option>
+                        <option value="10:00">10:00</option>
+                        <option value="7:00">7:00</option>
+                        <option value="6:00">6:00</option>
+                        <option value="5:00">5:00</option>
+                        <option value="4:00">4:00</option>
+                        <option value="8:48">8:48</option>
+                    </select>
+                </div>
+                <div id="meusDadosErro" class="seletor-usuario-erro hidden mt-2"></div>
+                <button class="btn btn-primary mt-2" id="btnSalvarMeusDados">
+                    <i class="fas fa-save"></i>
+                    Salvar em todas as abas
+                </button>
+            </div>
+        </div>
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
             <div class="card">
@@ -416,6 +457,9 @@ function carregarInterfaceConfiguracoes() {
     // Renderiza feriados cadastrados e calcula dias úteis do mês atual
     renderizarListaFeriados();
     atualizarCalculoDiasUteis();
+
+    // Pré-carrega o cabeçalho (Meus Dados) já preenchido na planilha
+    carregarMeusDadosNaTela();
 }
 
 /**
@@ -580,6 +624,46 @@ function configurarEventListenersConfiguracoes() {
 
         btn.disabled = false;
         btn.innerHTML = iconeOriginal;
+    });
+
+    // Salvar Meus Dados (cabeçalho nas 12 abas das duas planilhas)
+    document.getElementById('btnSalvarMeusDados')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget;
+        const divErro = document.getElementById('meusDadosErro');
+        divErro?.classList.add('hidden');
+
+        const dados = {
+            nome: document.getElementById('meusDadosNome')?.value.trim() || '',
+            numeroFuncional: document.getElementById('meusDadosNumeroFuncional')?.value.trim() || '',
+            horarioTrabalho: document.getElementById('meusDadosHorarioTrabalho')?.value.trim() || '',
+            cargaHorariaDia: document.getElementById('meusDadosCargaHoraria')?.value || ''
+        };
+
+        if (!dados.nome && !dados.numeroFuncional && !dados.horarioTrabalho && !dados.cargaHorariaDia) {
+            if (divErro) {
+                divErro.textContent = 'Preencha ao menos um campo';
+                divErro.classList.remove('hidden');
+            }
+            return;
+        }
+
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando em todas as abas...';
+
+        const resultado = typeof gravarMeusDadosAPI === 'function'
+            ? await gravarMeusDadosAPI(dados)
+            : { success: false, error: 'Função indisponível' };
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+
+        if (resultado.success) {
+            mostrarNotificacao('Cabeçalho atualizado em todas as abas', 'success', 2000);
+        } else if (divErro) {
+            divErro.textContent = resultado.error || 'Não foi possível salvar';
+            divErro.classList.remove('hidden');
+        }
     });
 
     // Feriados personalizados
@@ -863,6 +947,29 @@ function atualizarStatusConfiguracoes() {
 /**
  * Verifica status do sistema
  */
+/**
+ * Pré-carrega os campos do card "Meus Dados" com o que já estiver
+ * preenchido numa aba de mês da planilha de Frequência (lê a primeira
+ * aba de mês que existir).
+ */
+async function carregarMeusDadosNaTela() {
+    const config = carregarConfiguracoes();
+    if (!config.sheetIdFrequencia || typeof obterMeusDadosAPI !== 'function') return;
+
+    const resultado = await obterMeusDadosAPI(config.sheetIdFrequencia);
+    if (!resultado.success) return;
+
+    const campoNome = document.getElementById('meusDadosNome');
+    const campoFuncional = document.getElementById('meusDadosNumeroFuncional');
+    const campoHorario = document.getElementById('meusDadosHorarioTrabalho');
+    const campoCarga = document.getElementById('meusDadosCargaHoraria');
+
+    if (campoNome && resultado.nome) campoNome.value = resultado.nome;
+    if (campoFuncional && resultado.numeroFuncional) campoFuncional.value = resultado.numeroFuncional;
+    if (campoHorario && resultado.horarioTrabalho) campoHorario.value = resultado.horarioTrabalho;
+    if (campoCarga && resultado.cargaHorariaDia) campoCarga.value = resultado.cargaHorariaDia;
+}
+
 async function verificarStatusSistema() {
     // Status PWA
     const badgePWA = document.getElementById('badgePWA');
