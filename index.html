@@ -200,25 +200,19 @@
         document.getElementById('currentDate').textContent = 
             dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
         
-        // Service Worker SEGURO (apenas se necessário)
+        // Service Worker: registra uma vez só, sem desregistrar a cada carregamento
+        // (o navegador já verifica atualização sozinho, e o app.js chama
+        // registration.update() a cada hora). updateViaCache: 'none' garante que
+        // o navegador nunca sirva o service-worker.js a partir do cache HTTP
+        // ao checar por uma versão nova.
         if ('serviceWorker' in navigator && location.protocol === 'https:') {
-            setTimeout(function() {
-                navigator.serviceWorker.getRegistrations()
-                    .then(function(registrations) {
-                        // Remove qualquer SW antigo
-                        return Promise.all(registrations.map(r => r.unregister()));
-                    })
-                    .then(function() {
-                        // Registra um SW MUITO SIMPLES
-                        return navigator.serviceWorker.register('service-worker.js');
-                    })
-                    .then(function(reg) {
-                        console.log('✅ Service Worker registrado:', reg.scope);
-                    })
-                    .catch(function(err) {
-                        console.log('⚠️ Service Worker não necessário:', err.message);
-                    });
-            }, 2000); // Espera 2 segundos
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' })
+                .then(function(reg) {
+                    console.log('✅ Service Worker registrado:', reg.scope);
+                })
+                .catch(function(err) {
+                    console.log('⚠️ Service Worker não necessário:', err.message);
+                });
         }
     });
 
