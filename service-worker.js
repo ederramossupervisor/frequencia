@@ -1,5 +1,5 @@
 // service-worker.js - VERSÃO ÚNICA E FUNCIONAL
-const CACHE_VERSION = 'v3.5'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
+const CACHE_VERSION = 'v3.6'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
 const CACHE_NAME = `frequencia-${CACHE_VERSION}`;
 
 self.addEventListener('install', event => {
