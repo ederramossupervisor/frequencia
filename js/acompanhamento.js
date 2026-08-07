@@ -329,8 +329,8 @@ function carregarInterfaceAcompanhamento() {
                             <div class="text-center">
                                 <div class="display-4 text-success" id="totalJustificativasMes">--</div>
                                 <small class="text-muted">Justificativas este mês</small>
-                                <div class="mt-1"><small class="text-muted" id="totalJustificativasMesDetalhe"></small></div>
                             </div>
+                            <div class="mt-2" id="listaJustificativasMes"></div>
                         </div>
                     </div>
                 </div>
@@ -1124,7 +1124,7 @@ async function salvarJustificativaAPI(dados) {
 
 async function atualizarEstatisticas() {
     const elemento = document.getElementById('totalJustificativasMes');
-    const detalheElemento = document.getElementById('totalJustificativasMesDetalhe');
+    const listaElemento = document.getElementById('listaJustificativasMes');
     if (!elemento) return; // Card não está na tela (ex: config incompleta)
     
     const config = carregarConfiguracoes();
@@ -1132,28 +1132,35 @@ async function atualizarEstatisticas() {
     
     if (!config.sheetIdAcompanhamento || typeof buscarStatusAcompanhamentoAPI !== 'function') {
         elemento.textContent = '--';
+        if (listaElemento) listaElemento.innerHTML = '';
         return;
     }
     
     elemento.textContent = '...';
+    if (listaElemento) listaElemento.innerHTML = '';
     
     const resultado = await buscarStatusAcompanhamentoAPI(config.sheetIdAcompanhamento, mes);
     
     if (!resultado || !resultado.success) {
         elemento.textContent = '--';
-        if (detalheElemento) detalheElemento.textContent = '';
         console.warn('Não foi possível carregar o resumo do mês:', resultado?.error);
         return;
     }
     
     elemento.textContent = String(resultado.totalJustificativas);
     
-    if (detalheElemento) {
-        const porCodigo = resultado.porCodigo || {};
-        const codigos = Object.keys(porCodigo);
-        detalheElemento.textContent = codigos.length
-            ? codigos.map(codigo => `${codigo}: ${porCodigo[codigo]}`).join(' • ')
-            : '';
+    if (listaElemento) {
+        listaElemento.innerHTML = '';
+        const justificativas = resultado.justificativas || [];
+        
+        justificativas.forEach(j => {
+            const linha = document.createElement('div');
+            linha.className = 'small text-muted border-bottom py-1';
+            // textContent (não innerHTML) porque código/data/observação vêm
+            // da planilha do usuário - evita qualquer risco de HTML injetado.
+            linha.textContent = `${j.codigo} - ${j.data} - ${j.observacao}`;
+            listaElemento.appendChild(linha);
+        });
     }
 }
 
