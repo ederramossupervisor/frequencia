@@ -199,6 +199,25 @@ function exibirResumoMes(resumo) {
     const container = document.getElementById('saldoMesConteudo');
     if (!container || !resumo) return;
 
+    // Calcula a previsão (se possível)
+    let previsaoSaldoHtml = '';
+    const mes = frequenciaState.mesAtual;
+    const previsao = calcularPrevisaoMes(mes, resumo);
+    
+    if (previsao && previsao.minutosBase > 0) {
+        const saldoPrevistoMinutos = previsao.minutosPrevistos - previsao.minutosBase;
+        const saldoPrevistoStr = formatarMinutosCurto(Math.abs(saldoPrevistoMinutos));
+        const sinal = saldoPrevistoMinutos >= 0 ? '+' : '-';
+        const cor = saldoPrevistoMinutos >= 0 ? '#4CAF50' : '#f44336'; // verde ou vermelho
+        
+        previsaoSaldoHtml = `
+            <div class="saldo-item saldo-previsao" style="grid-column: 1 / -1; border-top: 1px solid #eee; padding-top: 8px;">
+                <span class="saldo-valor" style="color:${cor};">${sinal}${saldoPrevistoStr}</span>
+                <span class="saldo-label">Previsão final do mês</span>
+            </div>
+        `;
+    }
+
     container.innerHTML = `
         <div class="saldo-item">
             <span class="saldo-valor">${resumo.horasEfetivasTrabalhadas || '--'}</span>
@@ -216,9 +235,9 @@ function exibirResumoMes(resumo) {
             <span class="saldo-valor">${resumo.saldoAcumuladoRepor || '--'}</span>
             <span class="saldo-label">A Repor</span>
         </div>
+        ${previsaoSaldoHtml}
     `;
 }
-
 /**
  * Volta o card "Saldo do Mês" para o estado de carregamento (usado ao
  * trocar de mês, antes da nova resposta da planilha chegar).
