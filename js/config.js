@@ -58,6 +58,17 @@ const CONFIG = {
     // período de férias cruza a virada e pra sugerir o próximo ano no
     // botão "Iniciar novo ano". Atualize aqui em dezembro/janeiro.
     ANO_ATUAL: 2026,
+
+    // NOVO — o card "Novo Ano" (botão de virar o ano) só aparece pra
+    // todo mundo a partir dessa data. Antes disso, só quem estiver em
+    // ADMIN_NOMES continua vendo (pra poder testar a qualquer momento).
+    // Formato "aaaa-mm-dd". Atualize junto com ANO_ATUAL a cada virada.
+    DATA_LIBERACAO_VIRADA: "2027-01-01",
+
+    // Nomes (exatamente como aparecem na coluna "Nome" da planilha de
+    // Usuários, sem diferenciar maiúsculas/minúsculas) que sempre veem o
+    // card "Novo Ano", mesmo antes da DATA_LIBERACAO_VIRADA.
+    ADMIN_NOMES: ["Eder"],
     
     // Configurações do app
     APP_SETTINGS: {

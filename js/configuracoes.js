@@ -1,6 +1,23 @@
 // LÓGICA DA ABA CONFIGURAÇÕES
 
 /**
+ * NOVO (virada de ano) — decide se o card "Novo Ano" deve aparecer:
+ * sempre pra quem estiver em CONFIG.ADMIN_NOMES, e pra todo mundo a
+ * partir de CONFIG.DATA_LIBERACAO_VIRADA (evita alguém virar o ano cedo
+ * demais sem perceber que a planilha "atual" muda na hora).
+ */
+function mostrarCardVirarAno_() {
+    const nome = (typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || '';
+    const admins = (CONFIG.ADMIN_NOMES || []).map(n => n.trim().toLowerCase());
+    if (admins.includes(nome.trim().toLowerCase())) return true;
+
+    if (!CONFIG.DATA_LIBERACAO_VIRADA) return true;
+    const hoje = new Date();
+    const liberacao = new Date(CONFIG.DATA_LIBERACAO_VIRADA + 'T00:00:00');
+    return hoje >= liberacao;
+}
+
+/**
  * Inicializa a aba de configurações
  */
 function initConfiguracoes() {
@@ -29,7 +46,47 @@ function carregarInterfaceConfiguracoes() {
         console.error('Container da aba configurações não encontrado');
         return;
     }
-    
+
+    // NOVO (virada de ano) — monta o HTML do card condicionalmente: só
+    // entra na página se mostrarCardVirarAno_() disser que pode.
+    const cardVirarAnoHtml_ = mostrarCardVirarAno_() ? `
+        <div class="card mb-3" id="cardVirarAno">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-calendar-plus"></i>
+                    Novo Ano
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">
+                    Cria suas planilhas de <strong>${CONFIG.ANO_ATUAL + 1}</strong> a partir dos templates,
+                    migra o saldo de horas de dezembro/${CONFIG.ANO_ATUAL} como ponto de partida de janeiro,
+                    e arquiva as planilhas de ${CONFIG.ANO_ATUAL} — nada é apagado.
+                </p>
+                <div id="virarAnoResultado" class="hidden mt-2"></div>
+                <button class="btn btn-primary" id="btnIniciarNovoAno">
+                    <i class="fas fa-calendar-plus"></i>
+                    Iniciar ${CONFIG.ANO_ATUAL + 1}
+                </button>
+
+                <hr class="my-3">
+                <button class="btn btn-secondary btn-sm" id="btnToggleModoAdmin">
+                    <i class="fas fa-user-shield"></i>
+                    Modo administrador (virar o ano de vários usuários)
+                </button>
+                <div id="painelModoAdmin" class="hidden mt-3">
+                    <p class="text-muted mb-2">Selecione quem deve iniciar ${CONFIG.ANO_ATUAL + 1}:</p>
+                    <div id="listaUsuariosAdmin" class="mb-2"><small class="text-muted">Carregando usuários...</small></div>
+                    <button class="btn btn-primary btn-sm" id="btnVirarAnoLote">
+                        <i class="fas fa-forward"></i>
+                        Virar ano dos selecionados
+                    </button>
+                    <div id="loteResultado" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
     container.innerHTML = `
         <div class="card mb-3" id="cardUsuarioAtual">
             <div class="card-header">
@@ -91,41 +148,7 @@ function carregarInterfaceConfiguracoes() {
                 </button>
             </div>
         </div>
-        <div class="card mb-3" id="cardVirarAno">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-calendar-plus"></i>
-                    Novo Ano
-                </h2>
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-2">
-                    Cria suas planilhas de <strong>${CONFIG.ANO_ATUAL + 1}</strong> a partir dos templates,
-                    migra o saldo de horas de dezembro/${CONFIG.ANO_ATUAL} como ponto de partida de janeiro,
-                    e arquiva as planilhas de ${CONFIG.ANO_ATUAL} — nada é apagado.
-                </p>
-                <div id="virarAnoResultado" class="hidden mt-2"></div>
-                <button class="btn btn-primary" id="btnIniciarNovoAno">
-                    <i class="fas fa-calendar-plus"></i>
-                    Iniciar ${CONFIG.ANO_ATUAL + 1}
-                </button>
-
-                <hr class="my-3">
-                <button class="btn btn-secondary btn-sm" id="btnToggleModoAdmin">
-                    <i class="fas fa-user-shield"></i>
-                    Modo administrador (virar o ano de vários usuários)
-                </button>
-                <div id="painelModoAdmin" class="hidden mt-3">
-                    <p class="text-muted mb-2">Selecione quem deve iniciar ${CONFIG.ANO_ATUAL + 1}:</p>
-                    <div id="listaUsuariosAdmin" class="mb-2"><small class="text-muted">Carregando usuários...</small></div>
-                    <button class="btn btn-primary btn-sm" id="btnVirarAnoLote">
-                        <i class="fas fa-forward"></i>
-                        Virar ano dos selecionados
-                    </button>
-                    <div id="loteResultado" class="mt-2"></div>
-                </div>
-            </div>
-        </div>
+        ${cardVirarAnoHtml_}
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
             <div class="card">
