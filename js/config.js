@@ -46,8 +46,18 @@ const CONFIG = {
         ACOMPANHAMENTO_SHEET_ID: "acompanhamento_sheet_id",
         USER_SETTINGS: "user_settings",
         FERIADOS: "feriados_personalizados",
-        USUARIO_NOME: "usuario_nome_selecionado"
+        USUARIO_NOME: "usuario_nome_selecionado",
+        // NOVO — virada de ano: mapas {ano: sheetId} de planilhas de anos
+        // anteriores da pessoa selecionada, cacheados localmente pra uso
+        // ao aplicar férias que cruzam dezembro/janeiro.
+        SHEET_IDS_FREQUENCIA_ANTERIORES: "sheet_ids_frequencia_anteriores",
+        SHEET_IDS_ACOMPANHAMENTO_ANTERIORES: "sheet_ids_acompanhamento_anteriores"
     },
+
+    // Ano corrente do app — usado como "ano de partida" pra saber se um
+    // período de férias cruza a virada e pra sugerir o próximo ano no
+    // botão "Iniciar novo ano". Atualize aqui em dezembro/janeiro.
+    ANO_ATUAL: 2026,
     
     // Configurações do app
     APP_SETTINGS: {

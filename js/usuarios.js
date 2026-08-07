@@ -123,6 +123,71 @@ async function criarUsuarioComTemplatesAPI(nome, email) {
 }
 
 /**
+ * NOVO (virada de ano) — pede ao Apps Script pra criar as planilhas do
+ * ano novo pra uma pessoa, migrar o saldo de horas de dezembro e
+ * atualizar a planilha central de Usuários. GET de propósito (cria
+ * arquivo no Drive — precisa de confirmação real de sucesso).
+ */
+async function virarAnoAPI(nome, anoNovo, email) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'virarAno',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            nome: nome,
+            anoNovo: String(anoNovo),
+            templateIdFrequencia: CONFIG.TEMPLATE_IDS.FREQUENCIA,
+            templateIdAcompanhamento: CONFIG.TEMPLATE_IDS.ACOMPANHAMENTO
+        });
+        if (email) params.set('email', email);
+
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * NOVO (virada de ano) — orquestra a virada pra UMA pessoa: chama
+ * virarAnoAPI e, se a pessoa virada for a pessoa atualmente logada
+ * neste aparelho, já atualiza o cache local (sheetId atual + mapa de
+ * anteriores) pra refletir o ano novo na hora, sem precisar
+ * resselecionar o usuário.
+ *
+ * @param {string} nome
+ * @param {number} anoNovo
+ * @param {string} [email] - opcional, pra compartilhar as planilhas novas
+ */
+async function iniciarNovoAno(nome, anoNovo, email) {
+    const resultado = await virarAnoAPI(nome, anoNovo, email);
+    if (!resultado.success) return resultado;
+
+    if (obterUsuarioAtual() === nome) {
+        salvarConfiguracoes({
+            sheetIdFrequencia: resultado.sheetIdFrequencia,
+            sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
+        });
+
+        const mapaFreqAnteriores = obterSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES);
+        const mapaAcompAnteriores = obterSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES);
+        // O sheetId que estava "atual" até agora passa a ser o do ano anterior.
+        const configAntiga = carregarConfiguracoes();
+        if (resultado.anoAnterior) {
+            if (configAntiga.sheetIdFrequencia) mapaFreqAnteriores[resultado.anoAnterior] = configAntiga.sheetIdFrequencia;
+            if (configAntiga.sheetIdAcompanhamento) mapaAcompAnteriores[resultado.anoAnterior] = configAntiga.sheetIdAcompanhamento;
+        }
+        salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, mapaFreqAnteriores);
+        salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, mapaAcompAnteriores);
+    }
+
+    return resultado;
+}
+
+/**
  * Nome do usuário atualmente selecionado neste aparelho/navegador (só o
  * nome fica salvo localmente — o resto vem da planilha central a cada
  * login).
@@ -230,6 +295,8 @@ async function selecionarUsuario(nome) {
         sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
     });
     salvarFeriadosConfigurados(resultado.feriados || []);
+    salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
+    salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
 
     return { success: true };
 }
@@ -262,6 +329,8 @@ async function sincronizarUsuarioAtual(silencioso) {
         sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
     });
     salvarFeriadosConfigurados(resultado.feriados || []);
+    salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
+    salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
 
     // Se a tela de Configurações estiver aberta, atualiza a lista de
     // feriados na hora, sem precisar trocar de aba.
@@ -509,4 +578,6 @@ if (typeof window !== 'undefined') {
     window.sincronizarUsuarioAtual = sincronizarUsuarioAtual;
     window.limparUsuarioSelecionado = limparUsuarioSelecionado;
     window.exibirSeletorUsuario = exibirSeletorUsuario;
+    window.virarAnoAPI = virarAnoAPI;
+    window.iniciarNovoAno = iniciarNovoAno;
 }

@@ -91,6 +91,41 @@ function carregarInterfaceConfiguracoes() {
                 </button>
             </div>
         </div>
+        <div class="card mb-3" id="cardVirarAno">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-calendar-plus"></i>
+                    Novo Ano
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">
+                    Cria suas planilhas de <strong>${CONFIG.ANO_ATUAL + 1}</strong> a partir dos templates,
+                    migra o saldo de horas de dezembro/${CONFIG.ANO_ATUAL} como ponto de partida de janeiro,
+                    e arquiva as planilhas de ${CONFIG.ANO_ATUAL} — nada é apagado.
+                </p>
+                <div id="virarAnoResultado" class="hidden mt-2"></div>
+                <button class="btn btn-primary" id="btnIniciarNovoAno">
+                    <i class="fas fa-calendar-plus"></i>
+                    Iniciar ${CONFIG.ANO_ATUAL + 1}
+                </button>
+
+                <hr class="my-3">
+                <button class="btn btn-secondary btn-sm" id="btnToggleModoAdmin">
+                    <i class="fas fa-user-shield"></i>
+                    Modo administrador (virar o ano de vários usuários)
+                </button>
+                <div id="painelModoAdmin" class="hidden mt-3">
+                    <p class="text-muted mb-2">Selecione quem deve iniciar ${CONFIG.ANO_ATUAL + 1}:</p>
+                    <div id="listaUsuariosAdmin" class="mb-2"><small class="text-muted">Carregando usuários...</small></div>
+                    <button class="btn btn-primary btn-sm" id="btnVirarAnoLote">
+                        <i class="fas fa-forward"></i>
+                        Virar ano dos selecionados
+                    </button>
+                    <div id="loteResultado" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
             <div class="card">
@@ -624,6 +659,120 @@ function configurarEventListenersConfiguracoes() {
 
         btn.disabled = false;
         btn.innerHTML = iconeOriginal;
+    });
+
+    // NOVO (virada de ano) — botão individual "Iniciar <ano novo>"
+    document.getElementById('btnIniciarNovoAno')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget;
+        const nome = (typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || '';
+        const anoNovo = CONFIG.ANO_ATUAL + 1;
+        const divResultado = document.getElementById('virarAnoResultado');
+
+        if (!nome) {
+            mostrarNotificacao('Nenhum usuário selecionado', 'error');
+            return;
+        }
+
+        const confirmou = confirm(
+            `Isso vai criar suas planilhas de ${anoNovo} a partir dos templates, migrar seu saldo de horas de ` +
+            `dezembro/${CONFIG.ANO_ATUAL} e arquivar as planilhas de ${CONFIG.ANO_ATUAL} (sem apagar nada). Continuar?`
+        );
+        if (!confirmou) return;
+
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando planilhas de ' + anoNovo + '...';
+        divResultado?.classList.add('hidden');
+
+        const resultado = await iniciarNovoAno(nome, anoNovo);
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+
+        if (resultado.success) {
+            mostrarNotificacao(`Ano ${anoNovo} iniciado! Suas planilhas de ${anoNovo} já estão em uso.`, 'success', 6000);
+            if (divResultado) {
+                const saldo = resultado.saldoMigrado || {};
+                const linhaSaldo = saldo.tentou
+                    ? (saldo.sucesso
+                        ? '<br>Saldo de horas de dezembro migrado para janeiro.'
+                        : `<br><span class="text-muted">Não foi possível migrar o saldo automaticamente: ${saldo.error || 'motivo desconhecido'}. Confira manualmente o início de Janeiro/${anoNovo}.</span>`)
+                    : '';
+                divResultado.innerHTML =
+                    `<div class="alert alert-success">Planilhas de ${anoNovo} criadas.${linhaSaldo}</div>`;
+                divResultado.classList.remove('hidden');
+            }
+        } else {
+            mostrarNotificacao('Não foi possível iniciar o ano: ' + (resultado.error || 'falha desconhecida'), 'error', 8000);
+        }
+    });
+
+    // NOVO (virada de ano) — modo administrador: mostra/esconde o painel
+    // e, na primeira vez que abre, carrega a lista de usuários da
+    // planilha central com uma checkbox por pessoa.
+    document.getElementById('btnToggleModoAdmin')?.addEventListener('click', async () => {
+        const painel = document.getElementById('painelModoAdmin');
+        if (!painel) return;
+
+        const abrindo = painel.classList.contains('hidden');
+        painel.classList.toggle('hidden');
+        if (!abrindo) return;
+
+        const lista = document.getElementById('listaUsuariosAdmin');
+        if (!lista || lista.dataset.carregado === '1') return;
+
+        const resultado = await listarUsuariosAPI();
+        if (!resultado.success || !resultado.usuarios || !resultado.usuarios.length) {
+            lista.innerHTML = '<small class="text-muted">Não consegui carregar a lista de usuários.</small>';
+            return;
+        }
+
+        lista.dataset.carregado = '1';
+        lista.innerHTML = resultado.usuarios.map(nome => `
+            <label class="d-flex align-items-center gap-2 mb-1">
+                <input type="checkbox" class="checkbox-usuario-admin" value="${nome}">
+                ${nome}
+            </label>
+        `).join('');
+    });
+
+    // NOVO (virada de ano) — dispara virarAno pra cada usuário marcado,
+    // um de cada vez (sequencial, pra não sobrecarregar o Apps Script),
+    // e mostra o resultado de cada um.
+    document.getElementById('btnVirarAnoLote')?.addEventListener('click', async (event) => {
+        const btn = event.currentTarget;
+        const anoNovo = CONFIG.ANO_ATUAL + 1;
+        const nomesSelecionados = Array.from(document.querySelectorAll('.checkbox-usuario-admin:checked')).map(c => c.value);
+        const divResultado = document.getElementById('loteResultado');
+
+        if (!nomesSelecionados.length) {
+            mostrarNotificacao('Selecione ao menos um usuário', 'error');
+            return;
+        }
+
+        const confirmou = confirm(`Iniciar o ano ${anoNovo} para ${nomesSelecionados.length} usuário(s)? Isso cria planilhas novas no Drive pra cada um.`);
+        if (!confirmou) return;
+
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        if (divResultado) divResultado.innerHTML = '';
+
+        for (const nome of nomesSelecionados) {
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${nome}...`;
+            const resultado = await virarAnoAPI(nome, anoNovo);
+            if (divResultado) {
+                const linha = document.createElement('div');
+                linha.className = resultado.success ? 'text-success' : 'text-danger';
+                linha.innerHTML = resultado.success
+                    ? `<i class="fas fa-check"></i> ${nome}: ano ${anoNovo} iniciado`
+                    : `<i class="fas fa-times"></i> ${nome}: ${resultado.error || 'falha desconhecida'}`;
+                divResultado.appendChild(linha);
+            }
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+        mostrarNotificacao('Virada de ano em lote concluída', 'info', 4000);
     });
 
     // Salvar Meus Dados (cabeçalho nas 12 abas das duas planilhas)

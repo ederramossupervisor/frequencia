@@ -854,6 +854,36 @@ function obterFeriadosConfigurados() {
 }
 
 /**
+ * NOVO (virada de ano) — guarda localmente o mapa {ano: sheetId} das
+ * planilhas de anos anteriores da pessoa selecionada (Frequência ou
+ * Acompanhamento, conforme a chave passada). Usado pra decidir, ao
+ * aplicar férias que cruzam dezembro/janeiro, em qual arquivo gravar
+ * cada pedaço do período.
+ */
+function salvarSheetIdsAnteriores(chaveStorage, mapa) {
+    try {
+        localStorage.setItem(chaveStorage, JSON.stringify(mapa || {}));
+        return true;
+    } catch (e) {
+        console.warn('Não foi possível salvar sheetIds anteriores:', e);
+        return false;
+    }
+}
+
+/**
+ * NOVO (virada de ano) — lê o mapa {ano: sheetId} salvo localmente.
+ */
+function obterSheetIdsAnteriores(chaveStorage) {
+    try {
+        const bruto = localStorage.getItem(chaveStorage);
+        const mapa = bruto ? JSON.parse(bruto) : {};
+        return (mapa && typeof mapa === 'object') ? mapa : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+/**
  * Salva a lista completa de feriados cadastrados.
  */
 function salvarFeriadosConfigurados(lista) {
@@ -985,6 +1015,8 @@ if (typeof window !== 'undefined') {
     window.salvarFeriadosConfigurados = salvarFeriadosConfigurados;
     window.formatarDataISO = formatarDataISO;
     window.eDiaUtil = eDiaUtil;
+    window.salvarSheetIdsAnteriores = salvarSheetIdsAnteriores;
+    window.obterSheetIdsAnteriores = obterSheetIdsAnteriores;
     window.calcularDiasUteisMes = calcularDiasUteisMes;
     window.contarDiasUteisSemRegistro = contarDiasUteisSemRegistro;
     window.calcularDiasFerias = calcularDiasFerias;

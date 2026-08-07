@@ -897,13 +897,48 @@ function exibirPreviewFerias(dataInicio, diasGozo, diasUteis, diasPulados) {
 }
 
 /**
- * Envia os dias calculados para o Apps Script, que grava o código FR
- * (só na coluna I — a planilha já deduz 8h automaticamente com o FR,
- * sem precisar gravar nada na coluna de horas) em cada dia, e também
- * registra "dataInicio a dataFim - Férias" na(s) aba(s) de Acompanhamento
- * tocada(s) pelo período — usado depois pela exportação pro e-docs pra
- * marcar TODOS os dias do período (inclusive fins de semana e feriados)
- * com "Férias" na Observação.
+ * NOVO (virada de ano) — monta o mapa {ano: sheetId} das planilhas de
+ * Frequência conhecidas localmente: a atual (config.sheetIdFrequencia,
+ * no ano "corrente" deduzido a partir do que já foi arquivado) + as
+ * anteriores (arquivadas a cada virada de ano). O ano corrente é
+ * deduzido como "o ano seguinte ao mais recente já arquivado" — assim
+ * fica certo automaticamente depois de cada virarAno, sem depender de
+ * editar CONFIG.ANO_ATUAL toda hora.
+ */
+function obterAnoSheetAtual_(chaveAnteriores) {
+    const anteriores = obterSheetIdsAnteriores(chaveAnteriores);
+    const anos = Object.keys(anteriores).map(Number).filter(n => !isNaN(n));
+    return anos.length ? Math.max(...anos) + 1 : CONFIG.ANO_ATUAL;
+}
+
+function obterMapaSheetIdsFrequenciaPorAno_() {
+    const config = carregarConfiguracoes();
+    const mapa = Object.assign({}, obterSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES));
+    if (config.sheetIdFrequencia) mapa[obterAnoSheetAtual_(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES)] = config.sheetIdFrequencia;
+    return mapa;
+}
+
+function obterMapaSheetIdsAcompanhamentoPorAno_() {
+    const config = carregarConfiguracoes();
+    const mapa = Object.assign({}, obterSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES));
+    if (config.sheetIdAcompanhamento) mapa[obterAnoSheetAtual_(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES)] = config.sheetIdAcompanhamento;
+    return mapa;
+}
+
+/**
+ * Envia os dias calculados para o Apps Script, que grava o código FR em
+ * cada dia, e também registra "dataInicio a dataFim - Férias" na(s) aba(s)
+ * de Acompanhamento tocada(s) pelo período.
+ *
+ * ATUALIZADO p/ VIRADA DE ANO: se o período cruzar dezembro/janeiro, os
+ * dias são separados por ano e enviados em "blocos" — cada um pra sua
+ * planilha de Frequência do ano certo — e o mapa de planilhas de
+ * Acompanhamento por ano vai junto, pra observação do período ser gravada
+ * nos dois anos. Como o envio ao Apps Script é "no-cors" (não dá pra
+ * confirmar de volta se deu certo), a checagem de "os anos envolvidos têm
+ * planilha?" é feita AQUI, antes de enviar — se faltar a planilha de
+ * algum ano, a pessoa é avisada pra "Iniciar novo ano" primeiro, em vez
+ * de mandar um período pela metade sem perceber.
  */
 async function aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO) {
     const config = carregarConfiguracoes();
@@ -911,18 +946,53 @@ async function aplicarFeriasCalculadas(diasUteis, dataInicio, dataFimISO) {
         mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
         return;
     }
-    
+
+    const anoInicio = parseInt(dataInicio.split('-')[0], 10);
+    const anoFim = parseInt(dataFimISO.split('-')[0], 10);
+    const cruzaAno = anoFim !== anoInicio;
+
+    const mapaFrequencia = obterMapaSheetIdsFrequenciaPorAno_();
+    const mapaAcompanhamento = obterMapaSheetIdsAcompanhamentoPorAno_();
+
+    if (cruzaAno) {
+        const anosFaltando = [];
+        for (let ano = anoInicio; ano <= anoFim; ano++) {
+            if (!mapaFrequencia[ano] || !mapaAcompanhamento[ano]) anosFaltando.push(ano);
+        }
+        if (anosFaltando.length) {
+            mostrarNotificacao(
+                `Esse período cruza o ano ${anosFaltando.join('/')}, mas você ainda não iniciou ` +
+                `${anosFaltando.length > 1 ? 'esses anos' : 'esse ano'} (Configurações > Novo Ano). ` +
+                `Inicie ${anosFaltando.length > 1 ? 'os anos' : 'o ano'} primeiro e aplique as férias de novo.`,
+                'error', 9000
+            );
+            return;
+        }
+    }
+
     const btn = document.getElementById('btnAplicarFerias');
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aplicando...';
     }
-    
+
+    // Agrupa os dias úteis por ano e monta um bloco por ano tocado.
+    const diasPorAno = {};
+    diasUteis.forEach(d => {
+        const ano = parseInt(d.data.split('-')[0], 10);
+        if (!diasPorAno[ano]) diasPorAno[ano] = [];
+        diasPorAno[ano].push({ month: d.month, day: d.day });
+    });
+
+    const blocos = Object.keys(diasPorAno).map(ano => ({
+        sheetIdFrequencia: mapaFrequencia[ano],
+        dias: diasPorAno[ano]
+    })).filter(b => b.sheetIdFrequencia);
+
     const resultado = await aplicarFeriasAPI({
-        sheetIdFrequencia: config.sheetIdFrequencia,
-        sheetIdAcompanhamento: config.sheetIdAcompanhamento,
+        blocos: blocos,
         codigo: 'FR',
-        dias: diasUteis.map(d => ({ month: d.month, day: d.day })),
+        sheetIdsAcompanhamentoPorAno: mapaAcompanhamento,
         dataInicioFerias: dataInicio,
         dataFimFerias: dataFimISO,
         textoObservacao: 'Férias'
@@ -958,12 +1028,20 @@ async function aplicarFeriasAPI(dados) {
         
         const dadosEnvio = {
             operation: 'aplicarFerias',
-            sheetIdFrequencia: dados.sheetIdFrequencia,
-            codigo: dados.codigo,
-            dias: dados.dias
+            codigo: dados.codigo
         };
 
-        if (dados.sheetIdAcompanhamento) dadosEnvio.sheetIdAcompanhamento = dados.sheetIdAcompanhamento;
+        // Formato novo (virada de ano): blocos por ano. Formato antigo
+        // (compatibilidade): sheetIdFrequencia + dias direto.
+        if (dados.blocos) {
+            dadosEnvio.blocos = dados.blocos;
+        } else {
+            dadosEnvio.sheetIdFrequencia = dados.sheetIdFrequencia;
+            dadosEnvio.dias = dados.dias;
+        }
+
+        if (dados.sheetIdsAcompanhamentoPorAno) dadosEnvio.sheetIdsAcompanhamentoPorAno = dados.sheetIdsAcompanhamentoPorAno;
+        else if (dados.sheetIdAcompanhamento) dadosEnvio.sheetIdAcompanhamento = dados.sheetIdAcompanhamento;
         if (dados.dataInicioFerias) dadosEnvio.dataInicioFerias = dados.dataInicioFerias;
         if (dados.dataFimFerias) dadosEnvio.dataFimFerias = dados.dataFimFerias;
         if (dados.textoObservacao) dadosEnvio.textoObservacao = dados.textoObservacao;
