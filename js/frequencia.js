@@ -429,8 +429,8 @@ function carregarInterfaceFrequencia() {
                         </select>
                     </div>
                     <small class="dias-legenda">
-                        <span class="legenda-item"><span class="legenda-dot completo"></span> Completo</span>
-                        <span class="legenda-item"><span class="legenda-dot parcial"></span> Parcial</span>
+                        <span class="legenda-item"><span style="color:#4CAF50;">✓</span> Completo</span>
+                        <span class="legenda-item"><span style="color:#FF9800;">•</span> Parcial</span>
                     </small>
                 </div>
                 
