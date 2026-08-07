@@ -199,20 +199,32 @@ function exibirResumoMes(resumo) {
     const container = document.getElementById('saldoMesConteudo');
     if (!container || !resumo) return;
 
-    // Calcula a previsão (se possível)
-    let previsaoSaldoHtml = '';
+    // Calcula a previsão com base nos dados atuais
+    let previsaoHtml = '';
     const mes = frequenciaState.mesAtual;
     const previsao = calcularPrevisaoMes(mes, resumo);
     
     if (previsao && previsao.minutosBase > 0) {
         const saldoPrevistoMinutos = previsao.minutosPrevistos - previsao.minutosBase;
         const saldoPrevistoStr = formatarMinutosCurto(Math.abs(saldoPrevistoMinutos));
-        const sinal = saldoPrevistoMinutos >= 0 ? '+' : '-';
-        const cor = saldoPrevistoMinutos >= 0 ? '#4CAF50' : '#f44336'; // verde ou vermelho
         
-        previsaoSaldoHtml = `
-            <div class="saldo-item saldo-previsao" style="grid-column: 1 / -1; border-top: 1px solid #eee; padding-top: 8px;">
-                <span class="saldo-valor" style="color:${cor};">${sinal}${saldoPrevistoStr}</span>
+        let classeCor = '';
+        let sinal = '';
+        
+        if (saldoPrevistoMinutos > 0) {
+            classeCor = 'saldo-positivo';   // verde (horas extras)
+            sinal = '+';
+        } else if (saldoPrevistoMinutos < 0) {
+            classeCor = 'saldo-negativo';   // vermelho (débito)
+            sinal = '-';
+        } else {
+            classeCor = 'saldo-zero';       // cinza (neutro)
+            sinal = '±';
+        }
+
+        previsaoHtml = `
+            <div class="saldo-item saldo-previsao ${classeCor}">
+                <span class="saldo-valor">${sinal}${saldoPrevistoStr}</span>
                 <span class="saldo-label">Previsão final do mês</span>
             </div>
         `;
@@ -235,7 +247,7 @@ function exibirResumoMes(resumo) {
             <span class="saldo-valor">${resumo.saldoAcumuladoRepor || '--'}</span>
             <span class="saldo-label">A Repor</span>
         </div>
-        ${previsaoSaldoHtml}
+        ${previsaoHtml}
     `;
 }
 /**
