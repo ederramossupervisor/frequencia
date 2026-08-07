@@ -1914,40 +1914,39 @@ body[data-theme="dark"] .modal {
     color: var(--branco);
 }
 /* ============================================
-   PREVISÃO DE SALDO DO MÊS (nova linha)
+   BADGE DE PREVISÃO NO CANTO INFERIOR DIREITO
    ============================================ */
-.saldo-previsao {
-    grid-column: 1 / -1;          /* ocupa as 2 colunas */
-    background: var(--branco-gelo);
-    border-top: 1px solid var(--cinza-claro);
-    padding-top: 0.75rem;
-    margin-top: 0.25rem;
-    border-radius: 10px;
-    padding: 0.75rem 0.5rem;
-    flex-direction: column !important; /* mantém o padrão dos outros itens */
+.saldo-item {
+    position: relative; /* necessário para posicionar o badge */
 }
 
-.saldo-previsao .saldo-valor {
-    font-size: 1.3rem;            /* um pouco maior para destacar a previsão */
-    font-weight: 800;
-}
-
-.saldo-previsao.saldo-positivo .saldo-valor {
-    color: var(--sucesso);        /* verde: horas extras (a compensar) */
-}
-
-.saldo-previsao.saldo-negativo .saldo-valor {
-    color: var(--erro);           /* vermelho: horas em débito (a repor) */
-}
-
-.saldo-previsao.saldo-zero .saldo-valor {
-    color: var(--cinza-escuro);   /* neutro: saldo exatamente zero */
-}
-
-.saldo-previsao .saldo-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;    /* mantém o padrão dos outros rótulos */
-    color: var(--cinza-escuro);
-    margin-top: 0.25rem;
+.saldo-previsao-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 1px 5px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     letter-spacing: 0.3px;
+    cursor: help;
+    line-height: 1.2;
+}
+
+.saldo-previsao-badge.badge-compensar {
+    color: var(--alerta); /* laranja */
+    background: rgba(255, 152, 0, 0.12);
+}
+
+.saldo-previsao-badge.badge-repor {
+    color: var(--sucesso); /* verde */
+    background: rgba(76, 175, 80, 0.12);
+}
+
+/* Modo escuro */
+body[data-theme="dark"] .saldo-previsao-badge {
+    background: var(--branco-gelo);
+    color: var(--preto);
 }
