@@ -1913,3 +1913,41 @@ body[data-theme="dark"] .modal {
     background: var(--azul-es);
     color: var(--branco);
 }
+/* ============================================
+   PREVISÃO DE SALDO DO MÊS (nova linha)
+   ============================================ */
+.saldo-previsao {
+    grid-column: 1 / -1;          /* ocupa as 2 colunas */
+    background: var(--branco-gelo);
+    border-top: 1px solid var(--cinza-claro);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+    border-radius: 10px;
+    padding: 0.75rem 0.5rem;
+    flex-direction: column !important; /* mantém o padrão dos outros itens */
+}
+
+.saldo-previsao .saldo-valor {
+    font-size: 1.3rem;            /* um pouco maior para destacar a previsão */
+    font-weight: 800;
+}
+
+.saldo-previsao.saldo-positivo .saldo-valor {
+    color: var(--sucesso);        /* verde: horas extras (a compensar) */
+}
+
+.saldo-previsao.saldo-negativo .saldo-valor {
+    color: var(--erro);           /* vermelho: horas em débito (a repor) */
+}
+
+.saldo-previsao.saldo-zero .saldo-valor {
+    color: var(--cinza-escuro);   /* neutro: saldo exatamente zero */
+}
+
+.saldo-previsao .saldo-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;    /* mantém o padrão dos outros rótulos */
+    color: var(--cinza-escuro);
+    margin-top: 0.25rem;
+    letter-spacing: 0.3px;
+}
