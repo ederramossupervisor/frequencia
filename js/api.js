@@ -216,6 +216,45 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Busca o resumo do mês (total de justificativas + contagem por código)
+ * direto na planilha de Acompanhamento, via ação 'statusAcompanhamento'
+ * do Apps Script.
+ *
+ * @param {string} sheetIdAcompanhamento
+ * @param {string} mes - Nome do mês (ex: 'JULHO'), igual ao nome da aba
+ * @returns {Promise<{success: boolean, totalJustificativas?: number, porCodigo?: object, error?: string}>}
+ */
+async function buscarStatusAcompanhamentoAPI(sheetIdAcompanhamento, mes) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        if (!sheetIdAcompanhamento || !mes) {
+            return { success: false, error: 'Planilha de acompanhamento ou mês não informados' };
+        }
+
+        const url = `${CONFIG.APP_SCRIPT_URL}?action=statusAcompanhamento&sheetIdAcompanhamento=${encodeURIComponent(sheetIdAcompanhamento)}&mes=${encodeURIComponent(mes)}`;
+
+        const resposta = await fetch(url, { method: 'GET' });
+
+        if (!resposta.ok) {
+            throw new Error(`Resposta HTTP ${resposta.status}`);
+        }
+
+        const resultado = await resposta.json();
+        return resultado;
+
+    } catch (error) {
+        console.warn('Não foi possível buscar o resumo do mês (acompanhamento):', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.buscarStatusAcompanhamentoAPI = buscarStatusAcompanhamentoAPI;
+}
+
+/**
  * Envia dados de frequência
  */
 async function salvarFrequenciaAPI(dados) {

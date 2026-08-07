@@ -11,6 +11,7 @@ function initAcompanhamento() {
     
     carregarInterfaceAcompanhamento();
     configurarEventListenersAcompanhamento();
+    atualizarEstatisticas();
     
     console.log('Aba Acompanhamento inicializada');
 }
@@ -326,8 +327,9 @@ function carregarInterfaceAcompanhamento() {
                         </div>
                         <div class="card-body">
                             <div class="text-center">
-                                <div class="display-4 text-success" id="totalJustificativasMes">0</div>
+                                <div class="display-4 text-success" id="totalJustificativasMes">--</div>
                                 <small class="text-muted">Justificativas este mês</small>
+                                <div class="mt-1"><small class="text-muted" id="totalJustificativasMesDetalhe"></small></div>
                             </div>
                         </div>
                     </div>
@@ -393,6 +395,13 @@ function configurarEventListenersAcompanhamento() {
     // Data e mês
     document.getElementById('dataJustificativa')?.addEventListener('change', (e) => {
         acompanhamentoState.dataJustificativa = e.target.value;
+    });
+    
+    // Mês selecionado no formulário de justificativa: também é o mês
+    // usado pelo card "Resumo do Mês", então atualiza os dois juntos.
+    document.getElementById('selectMesJustificativa')?.addEventListener('change', (e) => {
+        acompanhamentoState.mesAtual = e.target.value;
+        atualizarEstatisticas();
     });
     
     // Horários
@@ -1113,12 +1122,38 @@ async function salvarJustificativaAPI(dados) {
     }
 }
 
-function atualizarEstatisticas() {
-    // Implementar contagem de justificativas
+async function atualizarEstatisticas() {
     const elemento = document.getElementById('totalJustificativasMes');
-    if (elemento) {
-        // Simulação - depois implementar contagem real
-        elemento.textContent = "0";
+    const detalheElemento = document.getElementById('totalJustificativasMesDetalhe');
+    if (!elemento) return; // Card não está na tela (ex: config incompleta)
+    
+    const config = carregarConfiguracoes();
+    const mes = acompanhamentoState.mesAtual || obterMesAtual();
+    
+    if (!config.sheetIdAcompanhamento || typeof buscarStatusAcompanhamentoAPI !== 'function') {
+        elemento.textContent = '--';
+        return;
+    }
+    
+    elemento.textContent = '...';
+    
+    const resultado = await buscarStatusAcompanhamentoAPI(config.sheetIdAcompanhamento, mes);
+    
+    if (!resultado || !resultado.success) {
+        elemento.textContent = '--';
+        if (detalheElemento) detalheElemento.textContent = '';
+        console.warn('Não foi possível carregar o resumo do mês:', resultado?.error);
+        return;
+    }
+    
+    elemento.textContent = String(resultado.totalJustificativas);
+    
+    if (detalheElemento) {
+        const porCodigo = resultado.porCodigo || {};
+        const codigos = Object.keys(porCodigo);
+        detalheElemento.textContent = codigos.length
+            ? codigos.map(codigo => `${codigo}: ${porCodigo[codigo]}`).join(' • ')
+            : '';
     }
 }
 
