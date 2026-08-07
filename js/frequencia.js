@@ -199,55 +199,64 @@ function exibirResumoMes(resumo) {
     const container = document.getElementById('saldoMesConteudo');
     if (!container || !resumo) return;
 
-    // Calcula a previsão com base nos dados atuais
-    let previsaoHtml = '';
+    // Converte os valores atuais para minutos (para cálculos)
+    const compensarMin = duracaoParaMinutos(resumo.saldoAcumuladoCompensar);
+    const reporMin = duracaoParaMinutos(resumo.saldoAcumuladoRepor);
+    const trabalhadasMin = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas);
+    const justificadasMin = duracaoParaMinutos(resumo.horasJustificadas);
+
+    // Calcula a previsão de variação (saldo previsto - base)
+    let saldoPrevistoMin = 0;
     const mes = frequenciaState.mesAtual;
     const previsao = calcularPrevisaoMes(mes, resumo);
-    
     if (previsao && previsao.minutosBase > 0) {
-        const saldoPrevistoMinutos = previsao.minutosPrevistos - previsao.minutosBase;
-        const saldoPrevistoStr = formatarMinutosCurto(Math.abs(saldoPrevistoMinutos));
-        
-        let classeCor = '';
-        let sinal = '';
-        
-        if (saldoPrevistoMinutos > 0) {
-            classeCor = 'saldo-positivo';   // verde (horas extras)
-            sinal = '+';
-        } else if (saldoPrevistoMinutos < 0) {
-            classeCor = 'saldo-negativo';   // vermelho (débito)
-            sinal = '-';
-        } else {
-            classeCor = 'saldo-zero';       // cinza (neutro)
-            sinal = '±';
-        }
+        saldoPrevistoMin = previsao.minutosPrevistos - previsao.minutosBase;
+    }
 
-        previsaoHtml = `
-            <div class="saldo-item saldo-previsao ${classeCor}">
-                <span class="saldo-valor">${sinal}${saldoPrevistoStr}</span>
-                <span class="saldo-label">Previsão final do mês</span>
-            </div>
+    // Badges de previsão (só aparecem se houver variação prevista)
+    let badgeCompensar = '';
+    let badgeRepor = '';
+
+    if (saldoPrevistoMin > 0) {
+        // Previsão de horas extras → badge em "A Compensar"
+        const totalPrevistoCompensar = compensarMin + saldoPrevistoMin;
+        badgeCompensar = `
+            <span class="saldo-previsao-badge badge-compensar" 
+                  title="Previsão de horas a compensar: +${formatarMinutosCurto(saldoPrevistoMin)}">
+                ${formatarMinutosCurto(totalPrevistoCompensar)}
+            </span>
+        `;
+    } else if (saldoPrevistoMin < 0) {
+        // Previsão de débito → badge em "A Repor"
+        const totalPrevistoRepor = reporMin + Math.abs(saldoPrevistoMin);
+        badgeRepor = `
+            <span class="saldo-previsao-badge badge-repor" 
+                  title="Previsão de horas a repor: -${formatarMinutosCurto(Math.abs(saldoPrevistoMin))}">
+                ${formatarMinutosCurto(totalPrevistoRepor)}
+            </span>
         `;
     }
 
+    // Monta o HTML mantendo os valores principais intactos
     container.innerHTML = `
         <div class="saldo-item">
-            <span class="saldo-valor">${resumo.horasEfetivasTrabalhadas || '--'}</span>
+            <span class="saldo-valor">${formatarMinutosCurto(trabalhadasMin) || '--'}</span>
             <span class="saldo-label">Trabalhadas</span>
         </div>
         <div class="saldo-item">
-            <span class="saldo-valor">${resumo.horasJustificadas || '--'}</span>
+            <span class="saldo-valor">${formatarMinutosCurto(justificadasMin) || '--'}</span>
             <span class="saldo-label">Justificadas</span>
         </div>
         <div class="saldo-item saldo-compensar">
             <span class="saldo-valor">${resumo.saldoAcumuladoCompensar || '--'}</span>
             <span class="saldo-label">A Compensar</span>
+            ${badgeCompensar}
         </div>
         <div class="saldo-item saldo-repor">
             <span class="saldo-valor">${resumo.saldoAcumuladoRepor || '--'}</span>
             <span class="saldo-label">A Repor</span>
+            ${badgeRepor}
         </div>
-        ${previsaoHtml}
     `;
 }
 /**
