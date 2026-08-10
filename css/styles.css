@@ -1950,3 +1950,16 @@ body[data-theme="dark"] .saldo-previsao-badge {
     background: var(--branco-gelo);
     color: var(--preto);
 }
+
+/* ============================================
+   AJUSTE DE TAMANHO DO BADGE DE PREVISÃO NO MOBILE
+   ============================================ */
+@media (max-width: 768px) {
+    .saldo-previsao-badge {
+        font-size: 0.65rem;   /* menor que os 0.8rem padrão */
+        padding: 0px 3px;     /* reduz o espaço interno */
+        bottom: 2px;
+        right: 4px;
+        border-radius: 6px;
+    }
+}
