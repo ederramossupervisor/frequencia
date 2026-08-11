@@ -1,7 +1,8 @@
 // ACOMPANHAMENTO.JS - VERSÃO COMPLETA COM CAMPOS SIMPLES
 let acompanhamentoState = {
     mesAtual: '',
-    dataJustificativa: getDataAtualBrasiliaISO() // Formato ISO "aaaa-mm-dd" no fuso de Brasília
+    dataJustificativa: getDataAtualBrasiliaISO(), // Formato ISO "aaaa-mm-dd" no fuso de Brasília
+    rascunhoEmEdicaoId: null // id da "saída rápida" (localStorage) sendo finalizada no formulário, se houver
 };
 
 function initAcompanhamento() {
@@ -29,6 +30,20 @@ function carregarInterfaceAcompanhamento() {
     }
     
     container.innerHTML = `
+        <!-- Saída Rápida: registra só a hora agora, finaliza depois -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-door-open"></i>
+                    Saída Rápida
+                </h2>
+                <span class="badge badge-info">Registrar agora, finalizar depois</span>
+            </div>
+            <div class="card-body" id="rascunhosJustificativaContainer">
+                ${renderRascunhosJustificativaHTML()}
+            </div>
+        </div>
+
         <div class="grid grid-2">
             <!-- Formulário de Justificativa -->
             <div class="card">
@@ -620,6 +635,10 @@ function limparJustificativa() {
         
         atualizarEstadoDuracaoAlmoco();
         calcularHorasJustificativa();
+
+        // Limpar o formulário não apaga a saída em aberto no localStorage —
+        // só desvincula o formulário dela, caso estivesse em edição.
+        acompanhamentoState.rascunhoEmEdicaoId = null;
     }
 }
 
@@ -655,6 +674,126 @@ document.addEventListener('DOMContentLoaded', function() {
         campoObs.addEventListener('input', validarObservacao);
     }
 });
+
+// ============================================
+// SAÍDA RÁPIDA — registra a hora de início na hora (ex: ao sair pra uma
+// viagem/serviço externo), sem precisar já saber código, hora de fim ou
+// observação. Fica guardada no aparelho (localStorage) até a pessoa
+// voltar e tocar em "Finalizar", que preenche o formulário de
+// justificativa já com a hora capturada. Nada é enviado à planilha
+// nesse momento — só quando a justificativa é de fato salva.
+// ============================================
+
+const CHAVE_RASCUNHOS_JUSTIFICATIVA = 'frequencia_rascunhos_justificativa';
+
+function obterRascunhosJustificativa() {
+    try {
+        const bruto = localStorage.getItem(CHAVE_RASCUNHOS_JUSTIFICATIVA);
+        const lista = bruto ? JSON.parse(bruto) : [];
+        return Array.isArray(lista) ? lista : [];
+    } catch (error) {
+        console.error('Erro ao ler saídas em aberto:', error);
+        return [];
+    }
+}
+
+function salvarRascunhosJustificativa(lista) {
+    try {
+        localStorage.setItem(CHAVE_RASCUNHOS_JUSTIFICATIVA, JSON.stringify(lista));
+    } catch (error) {
+        console.error('Erro ao salvar saídas em aberto:', error);
+    }
+}
+
+function registrarSaidaAgora() {
+    const rascunhos = obterRascunhosJustificativa();
+    const novoRascunho = {
+        id: Date.now().toString(36),
+        data: getDataAtualBrasiliaISO(),
+        mes: obterMesAtual(),
+        horaInicio: getHoraAtualBrasilia()
+    };
+    rascunhos.push(novoRascunho);
+    salvarRascunhosJustificativa(rascunhos);
+    atualizarRascunhosJustificativaUI();
+    mostrarNotificacao(`Saída registrada às ${novoRascunho.horaInicio}. Toque em "Finalizar" quando voltar.`, 'success');
+}
+
+function descartarRascunhoJustificativa(id) {
+    if (!confirm('Descartar este registro de saída? Essa ação não pode ser desfeita.')) return;
+
+    const rascunhos = obterRascunhosJustificativa().filter(r => r.id !== id);
+    salvarRascunhosJustificativa(rascunhos);
+
+    if (acompanhamentoState.rascunhoEmEdicaoId === id) {
+        acompanhamentoState.rascunhoEmEdicaoId = null;
+    }
+
+    atualizarRascunhosJustificativaUI();
+}
+
+function retomarRascunhoJustificativa(id) {
+    const rascunho = obterRascunhosJustificativa().find(r => r.id === id);
+    if (!rascunho) return;
+
+    acompanhamentoState.rascunhoEmEdicaoId = id;
+    acompanhamentoState.dataJustificativa = rascunho.data;
+    acompanhamentoState.mesAtual = rascunho.mes;
+
+    const dataInput = document.getElementById('dataJustificativa');
+    const mesSelect = document.getElementById('selectMesJustificativa');
+    const horaInicioInput = document.getElementById('horaInicioJustificativa');
+    const codigoSelect = document.getElementById('codigoJustificativa');
+
+    if (dataInput) dataInput.value = rascunho.data;
+    if (mesSelect) mesSelect.value = rascunho.mes;
+    if (horaInicioInput) horaInicioInput.value = rascunho.horaInicio;
+
+    calcularHorasJustificativa();
+
+    codigoSelect?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    codigoSelect?.focus();
+
+    mostrarNotificacao('Hora de saída preenchida. Agora escolha o código, a hora de fim e a observação.', 'info');
+}
+
+function renderRascunhosJustificativaHTML() {
+    const rascunhos = obterRascunhosJustificativa();
+
+    const listaHtml = rascunhos.map(r => `
+        <div class="alert alert-info d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <i class="fas fa-door-open"></i>
+                Saída às <strong>${r.horaInicio}</strong> em ${formatarData(r.data)} (${r.mes}) — ainda não finalizada
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-primary" onclick="retomarRascunhoJustificativa('${r.id}')">
+                    <i class="fas fa-check"></i> Finalizar
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="descartarRascunhoJustificativa('${r.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+        ${listaHtml}
+        <button class="btn btn-outline-primary btn-block" id="btnRegistrarSaidaAgora" onclick="registrarSaidaAgora()">
+            <i class="fas fa-door-open"></i>
+            Registrar Saída Agora (só a hora de início)
+        </button>
+        <small class="text-muted d-block mt-1 text-center">
+            Use ao sair (viagem, serviço externo etc). Fica salvo neste aparelho até você tocar em "Finalizar" e
+            completar código, hora de fim e observação — só aí é enviado para a planilha.
+        </small>
+    `;
+}
+
+function atualizarRascunhosJustificativaUI() {
+    const container = document.getElementById('rascunhosJustificativaContainer');
+    if (container) container.innerHTML = renderRascunhosJustificativaHTML();
+}
 
 async function salvarJustificativa() {
     try {
@@ -797,6 +936,17 @@ async function salvarJustificativa() {
         if (resultado && resultado.success) {
             console.log('✅ Sucesso! Mostrando notificação...');
             mostrarNotificacao('Justificativa salva com sucesso!', 'success');
+
+            // Se essa justificativa veio de uma "Saída Rápida" (Finalizar),
+            // remove o rascunho do localStorage agora que já foi enviado.
+            if (acompanhamentoState.rascunhoEmEdicaoId) {
+                const rascunhosRestantes = obterRascunhosJustificativa()
+                    .filter(r => r.id !== acompanhamentoState.rascunhoEmEdicaoId);
+                salvarRascunhosJustificativa(rascunhosRestantes);
+                acompanhamentoState.rascunhoEmEdicaoId = null;
+                atualizarRascunhosJustificativaUI();
+            }
+
             limparJustificativa();
             atualizarEstatisticas();
         } else {
