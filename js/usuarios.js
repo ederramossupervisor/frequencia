@@ -581,3 +581,18 @@ if (typeof window !== 'undefined') {
     window.virarAnoAPI = virarAnoAPI;
     window.iniciarNovoAno = iniciarNovoAno;
 }
+
+function usuarioEstaAutenticado(nome) {
+    try {
+        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
+        return !!autenticados[nome];
+    } catch (e) { return false; }
+}
+
+function marcarUsuarioAutenticado(nome) {
+    try {
+        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
+        autenticados[nome] = true;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO, JSON.stringify(autenticados));
+    } catch (e) {}
+}
