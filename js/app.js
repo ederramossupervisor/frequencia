@@ -23,107 +23,59 @@ function mudarParaAba(aba) {
 function initApp() {
     console.log('🚀 Inicializando Controle de Frequência...');
 
-    // Função interna que executa a parte comum da inicialização,
-    // usada tanto no fluxo sem PIN quanto no fluxo com PIN já autenticado.
-    const continuarInicializacao = () => {
-        setTimeout(esconderSplashScreen, 2000);
-
-        // Rebusca planilhas/feriados na planilha central de Usuários toda vez
-        // que o app abre — sem isso, um feriado adicionado em outro aparelho
-        // nunca apareceria aqui. Roda em paralelo, sem travar a abertura.
-        if (typeof sincronizarUsuarioAtual === 'function') {
-            sincronizarUsuarioAtual(true);
-        }
-
-        // Configura data atual no cabeçalho
-        atualizarDataAtual();
-
-        // Configura navegação por abas
-        configurarNavegacaoAbas();
-
-        // Configura event listeners globais
-        configurarEventListenersGlobais();
-
-        // Inicializa a aba atual
-        inicializarAbaAtual();
-
-        // Verifica se está instalado como PWA
-        verificarInstalacaoPWA();
-
-        // Configura verificação de conexão
-        configurarVerificacaoConexao();
-
-        // Sincroniza backups pendentes em segundo plano
-        setTimeout(() => {
-            if (typeof sincronizarBackupsPendentes === 'function') {
-                sincronizarBackupsPendentes();
-            }
-        }, 3000);
-
-        console.log('✅ Aplicativo inicializado com sucesso!');
-
-        // Mostra mensagem de boas-vindas
-        setTimeout(() => {
-            mostrarBoasVindas();
-        }, 1000);
-    };
-
-    // Verifica se há usuário selecionado e se precisa de autenticação por PIN
-    if (typeof obterUsuarioAtual === 'function') {
-        const usuarioAtual = obterUsuarioAtual();
-
-        // Se não há usuário selecionado, mostra a tela de seleção
-        if (!usuarioAtual) {
-            esconderSplashScreen();
-            if (typeof exibirSeletorUsuario === 'function') {
-                exibirSeletorUsuario();
-            }
-            return;
-        }
-
-        // Se a função de autenticação está disponível e o dispositivo
-        // ainda não foi autenticado para esse usuário, verifica se o
-        // usuário tem PIN configurado.
-        if (typeof usuarioEstaAutenticado === 'function' && !usuarioEstaAutenticado(usuarioAtual)) {
-            obterUsuarioAPI(usuarioAtual)
-                .then(resultado => {
-                    esconderSplashScreen();
-                    if (resultado.success && resultado.pinConfigurado) {
-                        // Usuário tem PIN e dispositivo não autenticado: pede PIN
-                        exibirTelaPin(usuarioAtual);
-                    } else {
-                        // Não tem PIN ou houve erro ao obter dados: segue normal
-                        continuarInicializacao();
-                    }
-                })
-                .catch(() => {
-                    // Em caso de falha na comunicação, assume que não tem PIN
-                    esconderSplashScreen();
-                    continuarInicializacao();
-                });
-            return;
-        }
-    }
-
-    // Caso não precise de autenticação por PIN, inicia normalmente
-    continuarInicializacao();
-}
-async function exibirTelaPin(nome) {
-    const pin = await solicitarPinModal(nome);
-    if (pin === null) {
-        limparUsuarioSelecionado();
-        exibirSeletorUsuario();
+    // Se ainda não escolheu quem é, mostra o seletor e não segue com o
+    // resto da inicialização — as planilhas/feriados dessa pessoa ainda
+    // não foram carregados.
+    if (typeof obterUsuarioAtual === 'function' && !obterUsuarioAtual()) {
+        esconderSplashScreen();
+        if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
         return;
     }
-    const verificacao = await verificarPinAPI(nome, pin);
-    if (verificacao.success) {
-        marcarUsuarioAutenticado(nome);
-        location.reload();
-    } else {
-        mostrarNotificacao('PIN incorreto', 'error', 3000);
-        setTimeout(() => location.reload(), 1000);
+
+    setTimeout(esconderSplashScreen, 2000);
+
+    // Rebusca planilhas/feriados na planilha central de Usuários toda vez
+    // que o app abre — sem isso, um feriado adicionado em outro aparelho
+    // (ex: celular) nunca aparecia aqui, porque a busca só acontecia uma
+    // vez, no login. Roda em paralelo, sem travar a abertura do app; se
+    // estiver offline, continua com o que já tinha localmente.
+    if (typeof sincronizarUsuarioAtual === 'function') {
+        sincronizarUsuarioAtual(true);
     }
+    
+    // Configura data atual no cabeçalho
+    atualizarDataAtual();
+    
+    // Configura navegação por abas
+    configurarNavegacaoAbas();
+    
+    // Configura event listeners globais
+    configurarEventListenersGlobais();
+    
+    // Inicializa a aba atual
+    inicializarAbaAtual();
+    
+    // Verifica se está instalado como PWA
+    verificarInstalacaoPWA();
+    
+    // Configura verificação de conexão
+    configurarVerificacaoConexao();
+    
+    // Sincroniza backups pendentes em segundo plano
+    setTimeout(() => {
+        if (typeof sincronizarBackupsPendentes === 'function') {
+            sincronizarBackupsPendentes();
+        }
+    }, 3000);
+    
+    console.log('✅ Aplicativo inicializado com sucesso!');
+    
+    // Mostra mensagem de boas-vindas
+    setTimeout(() => {
+        mostrarBoasVindas();
+    }, 1000);
 }
+
 /**
  * Atualiza a data atual no cabeçalho (fuso de Brasília)
  */
