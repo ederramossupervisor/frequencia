@@ -1411,6 +1411,122 @@ input:focus, select:focus, textarea:focus {
     background: var(--alerta);
 }
 
+.dias-legenda .legenda-feriado-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    background: var(--azul-es-claro);
+    border: 1px solid var(--azul-es);
+}
+
+/* ============================================
+   SELETOR DE DIA CUSTOM
+   ============================================
+   Substitui o <select> nativo do dia na aba Frequência. Um <option> não
+   permite texto em tamanho diferente dentro dele, e o pedido era mostrar
+   sábado/domingo/feriado e a observação da planilha de Acompanhamento na
+   frente do dia, em letra pequena, sem aumentar a altura da linha do
+   número do dia — por isso virou um menu próprio (divs), não um <select>.
+   O <input type="hidden" id="selectDia"> continua guardando o valor (dia
+   escolhido) do mesmo jeito que o <select> guardava, então o resto do
+   app não precisou mudar. */
+.select-dia-custom {
+    position: relative;
+}
+
+.select-dia-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+}
+
+.select-dia-toggle::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23556B2F' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.select-dia-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--branco);
+    border: 2px solid var(--cinza-claro);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+}
+
+.select-dia-menu.aberto {
+    display: block;
+}
+
+.select-dia-opcao {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--cinza-claro);
+}
+
+.select-dia-opcao:last-child {
+    border-bottom: none;
+}
+
+.select-dia-opcao:hover {
+    background: var(--azul-es-claro);
+}
+
+.select-dia-opcao.selecionada {
+    background: var(--verde-musgo-claro);
+    font-weight: 600;
+}
+
+.select-dia-numero {
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+/* Observação/sábado-domingo-feriado: letra pequena de propósito, pra não
+   empurrar a altura da linha do dia — fica ao lado do número, trunca com
+   reticências se não couber. */
+.select-dia-sub {
+    font-size: 0.72rem;
+    color: var(--cinza-escuro);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.select-dia-opcao.select-dia-fim-semana .select-dia-sub,
+.select-dia-opcao.select-dia-feriado .select-dia-sub {
+    color: var(--azul-es-escuro);
+}
+
+.select-dia-opcao.select-dia-feriado {
+    background: var(--azul-es-claro);
+}
+
+.select-dia-opcao.select-dia-feriado.selecionada,
+.select-dia-opcao.select-dia-fim-semana.selecionada {
+    background: var(--verde-musgo-claro);
+}
+
 /* ============================================
    SALDO DO MÊS (dados reais da planilha)
    ============================================ */

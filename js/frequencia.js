@@ -2,17 +2,69 @@
 let frequenciaState = {
     mesAtual: '',
     diaAtual: 1,
-    diasDoMes: {}   // cache: {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde, totalGeral, ...}} vindo da planilha
+    diasDoMes: {},   // cache: {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde, totalGeral, ...}} vindo da planilha
+    observacoesPorDia: { mes: '', dias: {} }   // cache: observações da planilha de Acompanhamento já cruzadas por dia (ver carregarObservacoesDoMes), usadas no seletor de dia
 };
 
 /**
- * Gera as <option> do seletor de dia, marcando com ✓ (verde) os dias já
+ * Escapa texto simples pra usar dentro do innerHTML do seletor de dia
+ * (evita que uma observação com "<" ou "&" quebre o menu).
+ */
+function escaparHtmlSelectDia_(texto) {
+    return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Descobre, pra um dia específico, se é sábado/domingo e/ou feriado
+ * cadastrado (mesma lista usada em Configurações/cálculo de dias úteis),
+ * devolvendo um rótulo curto pra mostrar no seletor de dia — ex: "Sábado",
+ * "Domingo", "Feriado: Independência".
+ */
+function obterInfoDiaSemana_(ano, mesIndex, dia, feriados) {
+    const data = new Date(ano, mesIndex, dia);
+    const diaSemana = data.getDay(); // 0 = domingo, 6 = sábado
+    const dataISO = (typeof formatarDataISO === 'function')
+        ? formatarDataISO(ano, mesIndex, dia)
+        : `${ano}-${String(mesIndex + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    const feriado = (feriados || []).find(f => f.data === dataISO);
+
+    let tag = '';
+    if (feriado) {
+        tag = feriado.descricao ? `Feriado: ${feriado.descricao}` : 'Feriado';
+    } else if (diaSemana === 0) {
+        tag = 'Domingo';
+    } else if (diaSemana === 6) {
+        tag = 'Sábado';
+    }
+
+    return { fimDeSemana: diaSemana === 0 || diaSemana === 6, feriado: !!feriado, tag };
+}
+
+/**
+ * Gera as opções do seletor de dia — um <div> por dia dentro do menu
+ * custom (ver #selectDiaMenu) — marcando com ✓ (verde) os dias já
  * registrados por completo e com • (laranja) os registrados parcialmente.
- * O status vem do armazenamento local (o app não lê dados de volta da
+ * Esse status vem do armazenamento local (o app não lê dados de volta da
  * planilha), então reflete o que foi salvo neste navegador.
+ *
+ * Cada opção também mostra, em texto pequeno abaixo do número do dia (sem
+ * alterar o tamanho da linha do número em si): se é sábado/domingo/feriado
+ * — calculado localmente com os feriados cadastrados em Configurações — e
+ * a observação já lançada na planilha de Acompanhamento pra aquele dia
+ * (vinda de carregarObservacoesDoMes).
  */
 function gerarOpcoesDias(mes, diaSelecionado) {
     const statusMes = (typeof obterStatusMes === 'function') ? obterStatusMes(mes) : {};
+    const mesIndex = (typeof CONFIG !== 'undefined') ? CONFIG.MESES.indexOf(mes) : -1;
+    const ano = new Date().getFullYear();
+    const feriados = (typeof obterFeriadosConfigurados === 'function') ? obterFeriadosConfigurados() : [];
+    const observacoesDoMes = (frequenciaState.observacoesPorDia && frequenciaState.observacoesPorDia.mes === mes)
+        ? frequenciaState.observacoesPorDia.dias
+        : {};
 
     return Array.from({length: 31}, (_, i) => i + 1)
         .map(dia => {
@@ -28,24 +80,104 @@ function gerarOpcoesDias(mes, diaSelecionado) {
                 estilo = 'color:#FF9800;';
             }
 
-            const selecionado = dia === diaSelecionado ? 'selected' : '';
-            return `<option value="${dia}" ${selecionado} style="${estilo}">${dia.toString().padStart(2, '0')}${marcador}</option>`;
+            const info = mesIndex !== -1 ? obterInfoDiaSemana_(ano, mesIndex, dia, feriados) : { tag: '' };
+            const observacao = observacoesDoMes[dia] || '';
+            const partesSub = [info.tag, observacao].filter(Boolean);
+            const subtextoHtml = partesSub.length
+                ? `<span class="select-dia-sub">${escaparHtmlSelectDia_(partesSub.join(' · '))}</span>`
+                : '';
+
+            const selecionado = dia === diaSelecionado;
+            const classes = [
+                'select-dia-opcao',
+                selecionado ? 'selecionada' : '',
+                info.fimDeSemana ? 'select-dia-fim-semana' : '',
+                info.feriado ? 'select-dia-feriado' : ''
+            ].filter(Boolean).join(' ');
+
+            return `<div class="${classes}" data-dia="${dia}" role="option" aria-selected="${selecionado}">
+                <span class="select-dia-numero" style="${estilo}">${dia.toString().padStart(2, '0')}${marcador}</span>
+                ${subtextoHtml}
+            </div>`;
         }).join('');
 }
 
 /**
- * Regenera as opções do seletor de dia (usado após trocar de mês ou salvar).
+ * Regenera as opções do seletor de dia (usado após trocar de mês, salvar,
+ * ou receber as observações do mês vindas da planilha).
  */
 function atualizarIndicadoresDias() {
     const selectDia = document.getElementById('selectDia');
-    if (!selectDia) return;
+    const menu = document.getElementById('selectDiaMenu');
+    if (!selectDia || !menu) return;
     const diaSelecionado = parseInt(selectDia.value) || frequenciaState.diaAtual;
-    selectDia.innerHTML = gerarOpcoesDias(frequenciaState.mesAtual, diaSelecionado);
+    menu.innerHTML = gerarOpcoesDias(frequenciaState.mesAtual, diaSelecionado);
+}
+
+/**
+ * Atualiza o texto visível do seletor de dia (o "botão" que fica fechado)
+ * a partir do valor guardado no input escondido #selectDia.
+ */
+function atualizarTextoToggleDia() {
+    const selectDia = document.getElementById('selectDia');
+    const toggleTexto = document.getElementById('selectDiaToggleTexto');
+    if (!selectDia || !toggleTexto) return;
+    const dia = parseInt(selectDia.value, 10) || 1;
+    toggleTexto.textContent = dia.toString().padStart(2, '0');
+}
+
+/**
+ * Fecha o menu do seletor de dia (ao escolher um dia ou clicar fora dele).
+ */
+function fecharSeletorDia() {
+    const menu = document.getElementById('selectDiaMenu');
+    const toggle = document.getElementById('selectDiaToggle');
+    if (menu) menu.classList.remove('aberto');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * Alterna a exibição do menu do seletor de dia.
+ */
+function alternarSeletorDia() {
+    const menu = document.getElementById('selectDiaMenu');
+    const toggle = document.getElementById('selectDiaToggle');
+    if (!menu || !toggle) return;
+    const abrindo = !menu.classList.contains('aberto');
+    menu.classList.toggle('aberto', abrindo);
+    toggle.setAttribute('aria-expanded', abrindo ? 'true' : 'false');
+    if (abrindo) {
+        const opcaoAtual = menu.querySelector('.select-dia-opcao.selecionada');
+        if (opcaoAtual) opcaoAtual.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+/**
+ * Define o dia selecionado — chamada tanto por clique numa opção do menu
+ * quanto programaticamente (ex: "Bati o Ponto" indo pro dia de hoje).
+ * O input escondido #selectDia continua sendo a fonte da verdade (mesmo
+ * id que o resto do app já lê via document.getElementById('selectDia').value),
+ * então nenhum outro trecho do código precisou mudar.
+ */
+function selecionarDia(dia, opcoes) {
+    const dispararChange = !opcoes || opcoes.dispararChange !== false;
+    const selectDia = document.getElementById('selectDia');
+    if (!selectDia) return;
+
+    selectDia.value = dia;
+    atualizarTextoToggleDia();
+    atualizarIndicadoresDias();
+    fecharSeletorDia();
+
+    if (dispararChange) {
+        selectDia.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 }
 
 if (typeof window !== 'undefined') {
     window.gerarOpcoesDias = gerarOpcoesDias;
     window.atualizarIndicadoresDias = atualizarIndicadoresDias;
+    window.selecionarDia = selecionarDia;
 }
 
 /**
@@ -356,6 +488,11 @@ if (typeof window !== 'undefined') {
  * Roda em segundo plano — não bloqueia o carregamento da aba.
  */
 async function sincronizarStatusMesComPlanilha(mes) {
+    // Busca as observações da planilha de Acompanhamento já cruzadas por
+    // dia (pro seletor de dia mostrar na frente do dia certo) em paralelo,
+    // sem bloquear o resto da sincronização.
+    carregarObservacoesDoMes(mes);
+
     try {
         const config = (typeof carregarConfiguracoes === 'function') ? carregarConfiguracoes() : null;
         if (!config || !config.sheetIdFrequencia) {
@@ -401,6 +538,42 @@ async function sincronizarStatusMesComPlanilha(mes) {
 
 if (typeof window !== 'undefined') {
     window.sincronizarStatusMesComPlanilha = sincronizarStatusMesComPlanilha;
+}
+
+/**
+ * Busca no Apps Script (ação "dadosEdocs", a mesma já usada pelo botão
+ * "Copiar para o e-docs") os dias do mês com a observação da planilha de
+ * Acompanhamento já cruzada dia a dia, e guarda em frequenciaState pro
+ * seletor de dia mostrar essa observação na frente do dia correspondente.
+ * Roda em segundo plano; se falhar, o seletor de dia simplesmente não
+ * mostra observação nenhuma (comportamento anterior).
+ */
+async function carregarObservacoesDoMes(mes) {
+    try {
+        if (typeof buscarDadosEdocsAPI !== 'function') return;
+
+        const config = (typeof carregarConfiguracoes === 'function') ? carregarConfiguracoes() : null;
+        if (!config || !config.sheetIdFrequencia) return;
+
+        const ano = new Date().getFullYear();
+        const resultado = await buscarDadosEdocsAPI(config.sheetIdFrequencia, config.sheetIdAcompanhamento, mes, ano);
+
+        // Só aplica se o mês ainda for o selecionado (evita corrida ao trocar rápido de mês)
+        if (resultado && resultado.success && mes === frequenciaState.mesAtual) {
+            const dias = {};
+            (resultado.dias || []).forEach(d => {
+                if (d.observacao) dias[d.dia] = d.observacao;
+            });
+            frequenciaState.observacoesPorDia = { mes: mes, dias: dias };
+            atualizarIndicadoresDias();
+        }
+    } catch (e) {
+        console.warn('Não foi possível carregar as observações do mês para o seletor de dia:', e);
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.carregarObservacoesDoMes = carregarObservacoesDoMes;
 }
 
 function initFrequencia() {
@@ -464,13 +637,20 @@ function carregarInterfaceFrequencia() {
                                 </option>`
                             ).join('')}
                         </select>
-                        <select class="form-control" id="selectDia">
-                            ${gerarOpcoesDias(frequenciaState.mesAtual, frequenciaState.diaAtual)}
-                        </select>
+                        <div class="select-dia-custom" id="selectDiaCustom">
+                            <input type="hidden" id="selectDia" value="${frequenciaState.diaAtual}">
+                            <button type="button" class="form-control select-dia-toggle" id="selectDiaToggle" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="selectDiaToggleTexto">${frequenciaState.diaAtual.toString().padStart(2, '0')}</span>
+                            </button>
+                            <div class="select-dia-menu" id="selectDiaMenu" role="listbox">
+                                ${gerarOpcoesDias(frequenciaState.mesAtual, frequenciaState.diaAtual)}
+                            </div>
+                        </div>
                     </div>
                     <small class="dias-legenda">
                         <span class="legenda-item"><span style="color:#4CAF50;">✓</span> Completo</span>
                         <span class="legenda-item"><span style="color:#FF9800;">•</span> Parcial</span>
+                        <span class="legenda-item"><span class="legenda-feriado-dot"></span> Fim de semana / feriado</span>
                     </small>
                 </div>
                 
@@ -650,6 +830,8 @@ function configurarEventListenersFrequencia() {
     // Seletores de data
     const selectMes = document.getElementById('selectMes');
     const selectDia = document.getElementById('selectDia');
+    const selectDiaToggle = document.getElementById('selectDiaToggle');
+    const selectDiaMenu = document.getElementById('selectDiaMenu');
     
     if (selectMes) {
         selectMes.addEventListener('change', (e) => {
@@ -666,6 +848,37 @@ function configurarEventListenersFrequencia() {
             frequenciaState.diaAtual = parseInt(e.target.value);
             carregarDadosDoDia(frequenciaState.diaAtual);
         });
+    }
+
+    // Seletor de dia custom (deixou de ser um <select> nativo — ver
+    // gerarOpcoesDias/selecionarDia — porque um <option> não permite texto
+    // menor só na parte do fim de semana/feriado/observação)
+    if (selectDiaToggle) {
+        selectDiaToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            alternarSeletorDia();
+        });
+    }
+
+    if (selectDiaMenu) {
+        selectDiaMenu.addEventListener('click', (e) => {
+            const opcao = e.target.closest('.select-dia-opcao');
+            if (!opcao) return;
+            selecionarDia(parseInt(opcao.dataset.dia, 10));
+        });
+    }
+
+    // Listener no document é anexado só uma vez (initFrequencia pode rodar
+    // de novo, ex: depois de salvar Configurações — sem essa guarda, cada
+    // chamada empilharia mais um listener idêntico).
+    if (!frequenciaState.listenerFechamentoSeletorDiaAtivo) {
+        document.addEventListener('click', (e) => {
+            const container = document.getElementById('selectDiaCustom');
+            if (container && !container.contains(e.target)) {
+                fecharSeletorDia();
+            }
+        });
+        frequenciaState.listenerFechamentoSeletorDiaAtivo = true;
     }
     
     // Campos de hora
@@ -807,8 +1020,8 @@ async function baterPontoAgora() {
 
     const selectDia = document.getElementById('selectDia');
     if (selectDia && parseInt(selectDia.value, 10) !== diaHoje) {
-        selectDia.value = diaHoje;
         frequenciaState.diaAtual = diaHoje;
+        selecionarDia(diaHoje, { dispararChange: false });
         carregarDadosDoDia(diaHoje);
     }
 
