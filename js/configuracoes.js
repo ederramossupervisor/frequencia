@@ -148,6 +148,33 @@ function carregarInterfaceConfiguracoes() {
                 </button>
             </div>
         </div>
+                <!-- Card PIN de Acesso -->
+        <div class="card mb-3" id="cardPin">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-key"></i>
+                    PIN de Acesso
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">
+                    Defina ou altere seu PIN. Ele será solicitado apenas na primeira vez que você usar este dispositivo.
+                </p>
+                <div class="form-group">
+                    <label class="form-label" for="pinNovo">Novo PIN (4 a 8 caracteres)</label>
+                    <input type="password" id="pinNovo" class="form-control" maxlength="8" placeholder="Digite o novo PIN">
+                </div>
+                <div class="grid grid-2 gap-2">
+                    <button class="btn btn-primary" id="btnSalvarPin">
+                        <i class="fas fa-save"></i> Salvar PIN
+                    </button>
+                    <button class="btn btn-secondary" id="btnRemoverPin">
+                        <i class="fas fa-trash"></i> Remover PIN
+                    </button>
+                </div>
+                <div id="pinStatus" class="hidden mt-2"></div>
+            </div>
+        </div>
         ${cardVirarAnoHtml_}
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
@@ -996,32 +1023,34 @@ function configurarEventListenersConfiguracoes() {
     if (btnLimparBackups) {
         btnLimparBackups.addEventListener('click', limparBackupsAntigos);
     }
-    // Botões para abrir planilhas configuradas
-const btnAbrirMinhaFrequencia = document.getElementById('btnAbrirMinhaFrequencia');
-if (btnAbrirMinhaFrequencia) {
-    btnAbrirMinhaFrequencia.addEventListener('click', () => {
-        const config = carregarConfiguracoes();
-        if (config.sheetIdFrequencia) {
-            window.open(`https://docs.google.com/spreadsheets/d/${config.sheetIdFrequencia}/edit`, '_blank');
-            mostrarNotificacao('Abrindo sua planilha de frequência...', 'info', 3000);
-        } else {
-            mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
-        }
-    });
-}
 
-const btnAbrirMinhaAcompanhamento = document.getElementById('btnAbrirMinhaAcompanhamento');
-if (btnAbrirMinhaAcompanhamento) {
-    btnAbrirMinhaAcompanhamento.addEventListener('click', () => {
-        const config = carregarConfiguracoes();
-        if (config.sheetIdAcompanhamento) {
-            window.open(`https://docs.google.com/spreadsheets/d/${config.sheetIdAcompanhamento}/edit`, '_blank');
-            mostrarNotificacao('Abrindo sua planilha de acompanhamento...', 'info', 3000);
-        } else {
-            mostrarNotificacao('Configure o ID da planilha de acompanhamento primeiro', 'error');
-        }
-    });
-}
+    // Botões para abrir planilhas configuradas
+    const btnAbrirMinhaFrequencia = document.getElementById('btnAbrirMinhaFrequencia');
+    if (btnAbrirMinhaFrequencia) {
+        btnAbrirMinhaFrequencia.addEventListener('click', () => {
+            const config = carregarConfiguracoes();
+            if (config.sheetIdFrequencia) {
+                window.open(`https://docs.google.com/spreadsheets/d/${config.sheetIdFrequencia}/edit`, '_blank');
+                mostrarNotificacao('Abrindo sua planilha de frequência...', 'info', 3000);
+            } else {
+                mostrarNotificacao('Configure o ID da planilha de frequência primeiro', 'error');
+            }
+        });
+    }
+
+    const btnAbrirMinhaAcompanhamento = document.getElementById('btnAbrirMinhaAcompanhamento');
+    if (btnAbrirMinhaAcompanhamento) {
+        btnAbrirMinhaAcompanhamento.addEventListener('click', () => {
+            const config = carregarConfiguracoes();
+            if (config.sheetIdAcompanhamento) {
+                window.open(`https://docs.google.com/spreadsheets/d/${config.sheetIdAcompanhamento}/edit`, '_blank');
+                mostrarNotificacao('Abrindo sua planilha de acompanhamento...', 'info', 3000);
+            } else {
+                mostrarNotificacao('Configure o ID da planilha de acompanhamento primeiro', 'error');
+            }
+        });
+    }
+
     // Campos de ID - processamento automático
     const idPlanilhaFrequencia = document.getElementById('idPlanilhaFrequencia');
     if (idPlanilhaFrequencia) {
@@ -1058,8 +1087,89 @@ if (btnAbrirMinhaAcompanhamento) {
             }
         });
     }
-}
 
+    // ============================================
+    // NOVOS LISTENERS PARA PIN DE ACESSO
+    // ============================================
+
+    // Salvar/Definir PIN
+    const btnSalvarPin = document.getElementById('btnSalvarPin');
+    if (btnSalvarPin) {
+        btnSalvarPin.addEventListener('click', async () => {
+            const nome = obterUsuarioAtual();
+            if (!nome) {
+                mostrarNotificacao('Nenhum usuário selecionado', 'error');
+                return;
+            }
+            const pin = document.getElementById('pinNovo')?.value.trim();
+            if (!pin) {
+                mostrarNotificacao('Digite um PIN', 'error');
+                return;
+            }
+            if (pin.length < 4 || pin.length > 8) {
+                mostrarNotificacao('O PIN deve ter entre 4 e 8 caracteres', 'error');
+                return;
+            }
+
+            btnSalvarPin.disabled = true;
+            btnSalvarPin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+            const resultado = await definirPinAPI(nome, pin);
+
+            btnSalvarPin.disabled = false;
+            btnSalvarPin.innerHTML = '<i class="fas fa-save"></i> Salvar PIN';
+
+            if (resultado.success) {
+                mostrarNotificacao('PIN salvo com sucesso', 'success');
+                // Marca como autenticado, pois acabou de definir
+                if (typeof marcarUsuarioAutenticado === 'function') {
+                    marcarUsuarioAutenticado(nome);
+                }
+                document.getElementById('pinNovo').value = '';
+            } else {
+                mostrarNotificacao('Erro: ' + (resultado.error || 'não foi possível salvar'), 'error');
+            }
+        });
+    }
+
+    // Remover PIN (opcional — requer implementação no backend)
+    const btnRemoverPin = document.getElementById('btnRemoverPin');
+    if (btnRemoverPin) {
+        btnRemoverPin.addEventListener('click', async () => {
+            const nome = obterUsuarioAtual();
+            if (!nome) {
+                mostrarNotificacao('Nenhum usuário selecionado', 'error');
+                return;
+            }
+
+            if (!confirm('Tem certeza que deseja remover o PIN? O acesso ficará sem PIN neste dispositivo.')) {
+                return;
+            }
+
+            // Nota: a função removerPinAPI ainda não existe no backend.
+            // Se desejar implementar, crie a rota 'removerPin' no Apps Script
+            // e adicione a função correspondente em usuarios.js.
+            if (typeof removerPinAPI === 'function') {
+                btnRemoverPin.disabled = true;
+                btnRemoverPin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removendo...';
+                const resultado = await removerPinAPI(nome);
+                btnRemoverPin.disabled = false;
+                btnRemoverPin.innerHTML = '<i class="fas fa-trash"></i> Remover PIN';
+
+                if (resultado.success) {
+                    mostrarNotificacao('PIN removido com sucesso', 'success');
+                    if (typeof removerAutenticacaoUsuario === 'function') {
+                        removerAutenticacaoUsuario(nome);
+                    }
+                } else {
+                    mostrarNotificacao('Erro: ' + (resultado.error || 'não foi possível remover'), 'error');
+                }
+            } else {
+                mostrarNotificacao('Funcionalidade de remoção de PIN ainda não disponível', 'warning', 4000);
+            }
+        });
+    }
+}
 /**
  * Carrega configurações salvas
  */
