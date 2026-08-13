@@ -1866,6 +1866,44 @@ body[data-theme="dark"] .modal {
 }
 
 /* ============================================
+   TELA DE PIN (criar / verificar)
+   ============================================ */
+.pin-input-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+}
+
+.pin-input-digit {
+    width: 3rem;
+    height: 3.25rem;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    border: 2px solid var(--cinza-claro);
+    border-radius: 10px;
+    color: var(--preto);
+    transition: var(--transicao-rapida);
+}
+
+.pin-input-digit:focus {
+    outline: none;
+    border-color: var(--azul-es);
+}
+
+.pin-confirmar-label {
+    margin-top: 1.25rem;
+    margin-bottom: 0;
+}
+
+.pin-esqueci-msg {
+    margin-top: 0.75rem;
+    font-size: 0.82rem;
+    text-align: left;
+}
+
+/* ============================================
    CADASTRO NA TELA DE SELEÇÃO DE USUÁRIO
    ============================================ */
 .seletor-usuario-link {

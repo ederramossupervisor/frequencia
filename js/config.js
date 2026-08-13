@@ -51,7 +51,16 @@ const CONFIG = {
         // anteriores da pessoa selecionada, cacheados localmente pra uso
         // ao aplicar férias que cruzam dezembro/janeiro.
         SHEET_IDS_FREQUENCIA_ANTERIORES: "sheet_ids_frequencia_anteriores",
-        SHEET_IDS_ACOMPANHAMENTO_ANTERIORES: "sheet_ids_acompanhamento_anteriores"
+        SHEET_IDS_ACOMPANHAMENTO_ANTERIORES: "sheet_ids_acompanhamento_anteriores",
+        // NOVO — PIN: marca que ESTE aparelho já confirmou o PIN da
+        // pessoa selecionada (ver js/pin.js). Enquanto essa flag existir,
+        // o app entra direto sem pedir o PIN de novo. É apagada junto com
+        // USUARIO_NOME em "Trocar de usuário".
+        DISPOSITIVO_PIN_OK: "dispositivo_pin_verificado",
+        // NOVO — e-mail da pessoa selecionada, cacheado localmente só pra
+        // pré-preencher o campo em Configurações (o valor "de verdade"
+        // sempre vem da planilha central de Usuários).
+        EMAIL_USUARIO: "email_usuario_selecionado"
     },
 
     // Ano corrente do app — usado como "ano de partida" pra saber se um

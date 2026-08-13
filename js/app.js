@@ -26,12 +26,36 @@ function initApp() {
     // Se ainda não escolheu quem é, mostra o seletor e não segue com o
     // resto da inicialização — as planilhas/feriados dessa pessoa ainda
     // não foram carregados.
-    if (typeof obterUsuarioAtual === 'function' && !obterUsuarioAtual()) {
+    const nomeAtual = typeof obterUsuarioAtual === 'function' ? obterUsuarioAtual() : '';
+    if (!nomeAtual) {
         esconderSplashScreen();
         if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
         return;
     }
 
+    // Já tem usuário escolhido, mas este aparelho ainda não confirmou o
+    // PIN dele — pede o PIN (criar ou verificar) antes de liberar o
+    // resto do app. iniciarChecagemPin() chama continuarInicializacaoApp()
+    // sozinha quando o PIN é confirmado.
+    if (typeof dispositivoPinConfirmado === 'function' && !dispositivoPinConfirmado()) {
+        esconderSplashScreen();
+        if (typeof iniciarChecagemPin === 'function') {
+            iniciarChecagemPin(nomeAtual);
+        } else {
+            continuarInicializacaoApp();
+        }
+        return;
+    }
+
+    continuarInicializacaoApp();
+}
+
+/**
+ * Resto da inicialização do app — separado de initApp() porque, quando o
+ * aparelho ainda não confirmou o PIN da pessoa, precisa esperar a tela de
+ * PIN resolver antes de continuar (ver iniciarChecagemPin em pin.js).
+ */
+function continuarInicializacaoApp() {
     setTimeout(esconderSplashScreen, 2000);
 
     // Rebusca planilhas/feriados na planilha central de Usuários toda vez

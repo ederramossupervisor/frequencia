@@ -75,7 +75,7 @@ async function gravarMeusDadosAPI(dados, sheetIds) {
  * GET (não POST) de propósito, igual as outras leituras — pra ter
  * confirmação de verdade do resultado.
  */
-async function criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento) {
+async function criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento, email) {
     try {
         if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
             return { success: false, error: 'URL do Apps Script não configurada' };
@@ -87,6 +87,8 @@ async function criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento) {
             linkFrequencia: linkFrequencia,
             linkAcompanhamento: linkAcompanhamento
         });
+        if (email) params.set('email', email);
+
         const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
         if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
         return await resposta.json();
@@ -244,6 +246,37 @@ async function obterUsuarioAPI(nome) {
 }
 
 /**
+ * Grava/atualiza o e-mail da pessoa atual na planilha central de
+ * Usuários. GET de propósito — é usado pra recuperação de PIN, então
+ * precisa de confirmação real de que salvou.
+ */
+async function definirEmailUsuarioAPI(email) {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const nome = obterUsuarioAtual();
+        if (!nome) return { success: false, error: 'Nenhum usuário selecionado' };
+
+        const params = new URLSearchParams({
+            action: 'definirEmailUsuario',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            nome: nome,
+            email: email
+        });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        const resultado = await resposta.json();
+        if (resultado.success) {
+            try { localStorage.setItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO, email || ''); } catch (e) {}
+        }
+        return resultado;
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Grava um feriado na planilha central (linha da pessoa atual). Mesma
  * limitação de "no-cors" do resto do app — não confirma de verdade se
  * salvou, então quem chama também atualiza a lista local otimisticamente.
@@ -297,6 +330,7 @@ async function selecionarUsuario(nome) {
     salvarFeriadosConfigurados(resultado.feriados || []);
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
+    try { localStorage.setItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO, resultado.email || ''); } catch (e) {}
 
     return { success: true };
 }
@@ -331,11 +365,13 @@ async function sincronizarUsuarioAtual(silencioso) {
     salvarFeriadosConfigurados(resultado.feriados || []);
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
+    try { localStorage.setItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO, resultado.email || ''); } catch (e) {}
 
     // Se a tela de Configurações estiver aberta, atualiza a lista de
     // feriados na hora, sem precisar trocar de aba.
     if (typeof renderizarListaFeriados === 'function') renderizarListaFeriados();
     if (typeof atualizarCalculoDiasUteis === 'function') atualizarCalculoDiasUteis();
+    if (typeof preencherEmailNaTela === 'function') preencherEmailNaTela();
 
     if (!silencioso && typeof mostrarNotificacao === 'function') {
         mostrarNotificacao('Dados sincronizados com a planilha central', 'success', 2000);
@@ -350,6 +386,7 @@ async function sincronizarUsuarioAtual(silencioso) {
  */
 function limparUsuarioSelecionado() {
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USUARIO_NOME);
+    try { localStorage.removeItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO); } catch (e) {}
 }
 
 /**
@@ -386,6 +423,10 @@ async function exibirSeletorUsuario() {
                 <p class="text-muted mb-2">Seu nome:</p>
                 <input type="text" id="cadastroNome" class="form-control" placeholder="Nome completo">
 
+                <p class="text-muted mt-2 mb-2">Seu e-mail:</p>
+                <input type="email" id="cadastroEmail" class="form-control" placeholder="Seu e-mail do Google">
+                <small class="text-muted d-block mt-1">Usado pra te mandar um PIN temporário se você esquecer o seu PIN.</small>
+
                 <div class="seletor-usuario-tabs mt-3">
                     <button type="button" class="seletor-usuario-tab active" data-modo="templates">Criar minhas planilhas</button>
                     <button type="button" class="seletor-usuario-tab" data-modo="links">Já tenho as planilhas</button>
@@ -393,9 +434,8 @@ async function exibirSeletorUsuario() {
 
                 <div id="cadastroModoTemplates">
                     <p class="text-muted mt-2 mb-2">
-                        O app cria, pra você, uma cópia nova de cada planilha (Frequência e Acompanhamento) a partir do template.
+                        O app cria, pra você, uma cópia nova de cada planilha (Frequência e Acompanhamento) a partir do template. O e-mail acima também é usado pra compartilhar as cópias com você.
                     </p>
-                    <input type="email" id="cadastroEmail" class="form-control" placeholder="Seu e-mail do Google (opcional, pra você também poder abrir as planilhas)">
                 </div>
 
                 <div id="cadastroModoLinks" class="hidden">
@@ -504,13 +544,14 @@ async function exibirSeletorUsuario() {
             return;
         }
 
+        const email = document.getElementById('cadastroEmail').value.trim();
+
         btnCadastrar.disabled = true;
         divErroCadastro.classList.add('hidden');
 
         let resultadoCriacao;
 
         if (modoCadastro === 'templates') {
-            const email = document.getElementById('cadastroEmail').value.trim();
             btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando suas planilhas...';
             resultadoCriacao = await criarUsuarioComTemplatesAPI(nome, email);
         } else {
@@ -523,7 +564,7 @@ async function exibirSeletorUsuario() {
                 return;
             }
             btnCadastrar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cadastrando...';
-            resultadoCriacao = await criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento);
+            resultadoCriacao = await criarUsuarioAPI(nome, linkFrequencia, linkAcompanhamento, email);
         }
 
         if (!resultadoCriacao.success) {
@@ -574,6 +615,7 @@ if (typeof window !== 'undefined') {
     window.criarUsuarioComTemplatesAPI = criarUsuarioComTemplatesAPI;
     window.adicionarFeriadoUsuarioAPI = adicionarFeriadoUsuarioAPI;
     window.removerFeriadoUsuarioAPI = removerFeriadoUsuarioAPI;
+    window.definirEmailUsuarioAPI = definirEmailUsuarioAPI;
     window.selecionarUsuario = selecionarUsuario;
     window.sincronizarUsuarioAtual = sincronizarUsuarioAtual;
     window.limparUsuarioSelecionado = limparUsuarioSelecionado;

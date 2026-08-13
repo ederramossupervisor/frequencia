@@ -1,15 +1,23 @@
 // LÓGICA DA ABA CONFIGURAÇÕES
 
 /**
+ * É admin? (mesma lista usada pelo card "Novo Ano") — usado tanto ali
+ * quanto no novo card de administração de PINs.
+ */
+function usuarioEhAdmin_() {
+    const nome = (typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || '';
+    const admins = (CONFIG.ADMIN_NOMES || []).map(n => n.trim().toLowerCase());
+    return admins.includes(nome.trim().toLowerCase());
+}
+
+/**
  * NOVO (virada de ano) — decide se o card "Novo Ano" deve aparecer:
  * sempre pra quem estiver em CONFIG.ADMIN_NOMES, e pra todo mundo a
  * partir de CONFIG.DATA_LIBERACAO_VIRADA (evita alguém virar o ano cedo
  * demais sem perceber que a planilha "atual" muda na hora).
  */
 function mostrarCardVirarAno_() {
-    const nome = (typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || '';
-    const admins = (CONFIG.ADMIN_NOMES || []).map(n => n.trim().toLowerCase());
-    if (admins.includes(nome.trim().toLowerCase())) return true;
+    if (usuarioEhAdmin_()) return true;
 
     if (!CONFIG.DATA_LIBERACAO_VIRADA) return true;
     const hoje = new Date();
@@ -87,6 +95,35 @@ function carregarInterfaceConfiguracoes() {
         </div>
     ` : '';
 
+    // NOVO — "Esqueci meu PIN": card só pra quem está em ADMIN_NOMES,
+    // sempre visível (não depende de DATA_LIBERACAO_VIRADA, diferente do
+    // card "Novo Ano" acima). Reseta o PIN de alguém que esqueceu — na
+    // próxima vez que essa pessoa entrar, o app pede pra criar um PIN novo.
+    const cardAdminPinHtml_ = usuarioEhAdmin_() ? `
+        <div class="card mb-3" id="cardAdminPin">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-user-shield"></i>
+                    Administração de PINs
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">Alguém esqueceu o PIN? Selecione a pessoa e resete — na próxima vez que ela entrar (nesse ou em qualquer aparelho), o app vai pedir pra ela criar um PIN novo.</p>
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <select id="adminPinSelect" class="form-control">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+                <div id="adminPinErro" class="seletor-usuario-erro hidden mt-2"></div>
+                <button class="btn btn-secondary mt-2" id="btnResetarPin" disabled>
+                    <i class="fas fa-rotate-left"></i>
+                    Resetar PIN
+                </button>
+            </div>
+        </div>
+    ` : '';
+
     container.innerHTML = `
         <div class="card mb-3" id="cardUsuarioAtual">
             <div class="card-header">
@@ -104,6 +141,21 @@ function carregarInterfaceConfiguracoes() {
                 <button class="btn btn-secondary" id="btnTrocarUsuario">
                     <i class="fas fa-right-left"></i>
                     Trocar de usuário
+                </button>
+                <button class="btn btn-secondary" id="btnTrocarPin">
+                    <i class="fas fa-lock"></i>
+                    Trocar PIN
+                </button>
+
+                <hr class="my-3">
+                <div class="form-group">
+                    <label>E-mail (pra receber um PIN temporário se esquecer o PIN)</label>
+                    <input type="email" id="emailUsuarioInput" class="form-control" placeholder="seu@email.com">
+                </div>
+                <div id="emailUsuarioErro" class="seletor-usuario-erro hidden mt-2"></div>
+                <button class="btn btn-secondary" id="btnSalvarEmailUsuario">
+                    <i class="fas fa-save"></i>
+                    Salvar e-mail
                 </button>
             </div>
         </div>
@@ -149,6 +201,7 @@ function carregarInterfaceConfiguracoes() {
             </div>
         </div>
         ${cardVirarAnoHtml_}
+        ${cardAdminPinHtml_}
         <div class="grid grid-2">
             <!-- Configurações das Planilhas -->
             <div class="card">
@@ -518,6 +571,47 @@ function carregarInterfaceConfiguracoes() {
 
     // Pré-carrega o cabeçalho (Meus Dados) já preenchido na planilha
     carregarMeusDadosNaTela();
+
+    // NOVO — "Esqueci meu PIN": popula o select do card de administração,
+    // se ele existir na tela (só existe pra quem está em ADMIN_NOMES)
+    carregarSelectAdminPin_();
+
+    // NOVO — pré-preenche o campo de e-mail com o valor cacheado
+    // localmente (o valor "de verdade" vem da planilha central)
+    preencherEmailNaTela();
+}
+
+/**
+ * NOVO — pré-preenche o campo de e-mail do card "Usuário" com o valor
+ * cacheado localmente na última vez que os dados foram sincronizados.
+ */
+function preencherEmailNaTela() {
+    const input = document.getElementById('emailUsuarioInput');
+    if (!input) return;
+    try {
+        input.value = localStorage.getItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO) || '';
+    } catch (e) {}
+}
+
+/**
+ * NOVO — carrega a lista de usuários no select do card "Administração de
+ * PINs" (visível só pra admins). Separado da renderização do HTML porque
+ * depende de uma chamada assíncrona à planilha central.
+ */
+async function carregarSelectAdminPin_() {
+    const select = document.getElementById('adminPinSelect');
+    if (!select) return; // card não está na tela (usuário não é admin)
+
+    const resultado = await listarUsuariosAPI();
+
+    if (!resultado.success || !resultado.usuarios || !resultado.usuarios.length) {
+        select.innerHTML = `<option value="">Nenhum usuário encontrado</option>`;
+        select.disabled = true;
+        return;
+    }
+
+    select.innerHTML = `<option value="">Selecione...</option>` +
+        resultado.usuarios.map(nome => `<option value="${nome}">${nome}</option>`).join('');
 }
 
 /**
@@ -665,7 +759,98 @@ function configurarEventListenersConfiguracoes() {
     // Trocar de usuário
     document.getElementById('btnTrocarUsuario')?.addEventListener('click', () => {
         if (typeof limparUsuarioSelecionado === 'function') limparUsuarioSelecionado();
+        if (typeof limparDispositivoPinConfirmado === 'function') limparDispositivoPinConfirmado();
         if (typeof exibirSeletorUsuario === 'function') exibirSeletorUsuario();
+    });
+
+    // NOVO — "Esqueci meu PIN": botão "Resetar PIN" do card de admin
+    document.getElementById('adminPinSelect')?.addEventListener('change', (event) => {
+        const btn = document.getElementById('btnResetarPin');
+        if (btn) btn.disabled = !event.target.value;
+        document.getElementById('adminPinErro')?.classList.add('hidden');
+    });
+
+    document.getElementById('btnResetarPin')?.addEventListener('click', async (event) => {
+        const select = document.getElementById('adminPinSelect');
+        const divErro = document.getElementById('adminPinErro');
+        const nomeAlvo = select?.value;
+        if (!nomeAlvo) return;
+
+        const confirmou = confirm(`Resetar o PIN de "${nomeAlvo}"? Ela vai precisar criar um PIN novo no próximo acesso.`);
+        if (!confirmou) return;
+
+        const btn = event.currentTarget;
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetando...';
+        divErro?.classList.add('hidden');
+
+        const resultado = typeof resetarPinAPI === 'function'
+            ? await resetarPinAPI(nomeAlvo)
+            : { success: false, error: 'Função de reset não disponível' };
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+
+        if (resultado.success) {
+            mostrarNotificacao(`PIN de "${nomeAlvo}" resetado com sucesso.`, 'success');
+            if (select) select.value = '';
+            btn.disabled = true;
+        } else if (divErro) {
+            divErro.textContent = resultado.error || 'Não foi possível resetar o PIN.';
+            divErro.classList.remove('hidden');
+        }
+    });
+
+    // NOVO — salva o e-mail de recuperação de PIN da pessoa atual
+    document.getElementById('btnSalvarEmailUsuario')?.addEventListener('click', async (event) => {
+        const input = document.getElementById('emailUsuarioInput');
+        const divErro = document.getElementById('emailUsuarioErro');
+        const email = (input?.value || '').trim();
+        divErro?.classList.add('hidden');
+
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            if (divErro) {
+                divErro.textContent = 'Digite um e-mail válido';
+                divErro.classList.remove('hidden');
+            }
+            return;
+        }
+
+        const btn = event.currentTarget;
+        const iconeOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+        const resultado = typeof definirEmailUsuarioAPI === 'function'
+            ? await definirEmailUsuarioAPI(email)
+            : { success: false, error: 'Função não disponível' };
+
+        btn.disabled = false;
+        btn.innerHTML = iconeOriginal;
+
+        if (resultado.success) {
+            mostrarNotificacao('E-mail salvo com sucesso', 'success');
+        } else if (divErro) {
+            divErro.textContent = resultado.error || 'Não foi possível salvar o e-mail.';
+            divErro.classList.remove('hidden');
+        }
+    });
+
+    // Trocar PIN (pede um PIN novo pra pessoa atual — reaproveita a
+    // mesma tela de "criar" PIN usada no primeiro acesso)
+    document.getElementById('btnTrocarPin')?.addEventListener('click', async () => {
+        const nome = (typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) || '';
+        if (!nome) {
+            mostrarNotificacao('Nenhum usuário selecionado', 'error');
+            return;
+        }
+        if (typeof exibirTelaPin !== 'function') return;
+
+        const resultado = await exibirTelaPin({ nome: nome, modo: 'criar', permitirCancelar: true });
+        if (resultado.sucesso) {
+            mostrarNotificacao('PIN atualizado com sucesso', 'success');
+        }
     });
 
     // Sincronizar agora (rebusca planilhas/feriados do usuário atual na
