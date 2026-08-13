@@ -1492,8 +1492,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 .select-dia-opcao.selecionada {
-    background: var(--verde-musgo-claro);
-    font-weight: 600;
+    background: var(--branco);
+    border-left: 4px solid var(--azul-es);
+    padding-left: calc(0.9rem - 4px);
+    font-weight: 700;
+}
+
+.select-dia-opcao.selecionada .select-dia-numero {
+    text-decoration: underline;
+    text-decoration-color: var(--azul-es);
+    text-underline-offset: 3px;
 }
 
 .select-dia-numero {
@@ -1524,7 +1532,7 @@ input:focus, select:focus, textarea:focus {
 
 .select-dia-opcao.select-dia-feriado.selecionada,
 .select-dia-opcao.select-dia-fim-semana.selecionada {
-    background: var(--verde-musgo-claro);
+    background: var(--azul-es-claro);
 }
 
 /* ============================================
