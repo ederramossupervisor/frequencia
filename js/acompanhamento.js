@@ -743,11 +743,16 @@ function retomarRascunhoJustificativa(id) {
     const dataInput = document.getElementById('dataJustificativa');
     const mesSelect = document.getElementById('selectMesJustificativa');
     const horaInicioInput = document.getElementById('horaInicioJustificativa');
+    const horaFimInput = document.getElementById('horaFimJustificativa');
     const codigoSelect = document.getElementById('codigoJustificativa');
 
     if (dataInput) dataInput.value = rascunho.data;
     if (mesSelect) mesSelect.value = rascunho.mes;
     if (horaInicioInput) horaInicioInput.value = rascunho.horaInicio;
+    // A hora de fim é preenchida com a hora ATUAL (momento em que você está
+    // finalizando/voltando) — sem isso, o campo ficava com o valor padrão
+    // do formulário (17:00) até você tocar em "Agora" manualmente.
+    if (horaFimInput) horaFimInput.value = getHoraAtualBrasilia();
 
     calcularHorasJustificativa();
 
