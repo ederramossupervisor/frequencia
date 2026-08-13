@@ -1,10 +1,12 @@
 // service-worker.js - VERSÃO ÚNICA E FUNCIONAL
-const CACHE_VERSION = 'v4.0'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
+const CACHE_VERSION = 'v3.8'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
 const CACHE_NAME = `frequencia-${CACHE_VERSION}`;
 
 self.addEventListener('install', event => {
   console.log('Service Worker: Instalado, versão', CACHE_VERSION);
   // Ativa a nova versão imediatamente, sem esperar todas as abas fecharem.
+  // Isso evita ficar preso numa versão antiga (o problema que causava o
+  // "não salva no mobile").
   self.skipWaiting();
 });
 
@@ -37,15 +39,14 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       caches.match('./index.html')
-        .then(response => response || fetch(event.request, { cache: 'no-cache' }))
+        .then(response => response || fetch(event.request))
     );
     return;
   }
 
-  // Para outros recursos, busca na rede SEM cache HTTP (no-cache)
-  // e cai pro cache offline apenas se a rede falhar
+  // Para outros recursos, busca na rede primeiro e cai pro cache se offline
   event.respondWith(
-    fetch(event.request, { cache: 'no-cache' })
+    fetch(event.request)
       .catch(() => caches.match(event.request))
   );
 });
