@@ -285,15 +285,22 @@ async function removerFeriadoUsuarioAPI(dataISO) {
  */
 async function selecionarUsuario(nome) {
     const resultado = await obterUsuarioAPI(nome);
-    if (!resultado.success) {
-        return resultado;
+    if (!resultado.success) return resultado;
+
+    // Se tem PIN configurado e o dispositivo ainda não está autenticado
+    if (resultado.pinConfigurado && !usuarioEstaAutenticado(nome)) {
+        const pin = await solicitarPinModal(nome);
+        if (pin === null) return { success: false, error: 'Login cancelado' };
+
+        const verificacao = await verificarPinAPI(nome, pin);
+        if (!verificacao.success) {
+            return { success: false, error: 'PIN incorreto. Tente novamente.' };
+        }
+        marcarUsuarioAutenticado(nome);
     }
 
     localStorage.setItem(CONFIG.STORAGE_KEYS.USUARIO_NOME, nome);
-    salvarConfiguracoes({
-        sheetIdFrequencia: resultado.sheetIdFrequencia,
-        sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
-    });
+    salvarConfiguracoes({ sheetIdFrequencia: resultado.sheetIdFrequencia, sheetIdAcompanhamento: resultado.sheetIdAcompanhamento });
     salvarFeriadosConfigurados(resultado.feriados || []);
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
@@ -342,6 +349,84 @@ async function sincronizarUsuarioAtual(silencioso) {
     }
 
     return { success: true };
+}
+
+function usuarioEstaAutenticado(nome) {
+    try {
+        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
+        return !!autenticados[nome];
+    } catch (e) { return false; }
+}
+
+function marcarUsuarioAutenticado(nome) {
+    try {
+        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
+        autenticados[nome] = true;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO, JSON.stringify(autenticados));
+    } catch (e) {}
+}
+
+async function verificarPinAPI(nome, pin) {
+    const params = new URLSearchParams({ action: 'verificarPin', nome, pin });
+    try {
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        return await resposta.json();
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function definirPinAPI(nome, pin) {
+    const params = new URLSearchParams({ action: 'definirPin', nome, pin });
+    try {
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        return await resposta.json();
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function solicitarRedefinicaoPinAPI(nome, email) {
+    const params = new URLSearchParams({ action: 'solicitarRedefinicaoPin', nome, email });
+    try {
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        return await resposta.json();
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+function solicitarPinModal(nome) {
+    return new Promise((resolve) => {
+        const corpo = `
+            <p>Digite o PIN para <strong>${nome}</strong></p>
+            <input type="password" id="inputPin" class="form-control" maxlength="10">
+            <div id="erroPin" class="seletor-usuario-erro hidden mt-2"></div>
+        `;
+        mostrarModal('PIN de Acesso', corpo, `
+            <button class="btn btn-secondary" id="btnCancelarPin">Cancelar</button>
+            <button class="btn btn-primary" id="btnConfirmarPin">Entrar</button>
+        `);
+        const input = document.getElementById('inputPin');
+        input.focus();
+        document.getElementById('btnConfirmarPin').addEventListener('click', () => {
+            const valor = input.value.trim();
+            fecharModal();
+            resolve(valor || null);
+        });
+        document.getElementById('btnCancelarPin').addEventListener('click', () => {
+            fecharModal();
+            resolve(null);
+        });
+    });
+}
+async function redefinirPinComTokenAPI(nome, token, pin) {
+    const params = new URLSearchParams({ action: 'redefinirPinComToken', nome, token, pin });
+    try {
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        return await resposta.json();
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 }
 
 /**
@@ -580,19 +665,10 @@ if (typeof window !== 'undefined') {
     window.exibirSeletorUsuario = exibirSeletorUsuario;
     window.virarAnoAPI = virarAnoAPI;
     window.iniciarNovoAno = iniciarNovoAno;
-}
-
-function usuarioEstaAutenticado(nome) {
-    try {
-        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
-        return !!autenticados[nome];
-    } catch (e) { return false; }
-}
-
-function marcarUsuarioAutenticado(nome) {
-    try {
-        const autenticados = JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO) || '{}');
-        autenticados[nome] = true;
-        localStorage.setItem(CONFIG.STORAGE_KEYS.USUARIO_AUTENTICADO, JSON.stringify(autenticados));
-    } catch (e) {}
+    window.verificarPinAPI = verificarPinAPI;
+    window.definirPinAPI = definirPinAPI;
+    window.solicitarRedefinicaoPinAPI = solicitarRedefinicaoPinAPI;
+    window.redefinirPinComTokenAPI = redefinirPinComTokenAPI;
+    window.usuarioEstaAutenticado = usuarioEstaAutenticado;
+    window.marcarUsuarioAutenticado = marcarUsuarioAutenticado;
 }
