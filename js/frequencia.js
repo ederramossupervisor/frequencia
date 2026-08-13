@@ -61,12 +61,13 @@ function gerarOpcoesDias(mes, diaSelecionado) {
     const statusMes = (typeof obterStatusMes === 'function') ? obterStatusMes(mes) : {};
     const mesIndex = (typeof CONFIG !== 'undefined') ? CONFIG.MESES.indexOf(mes) : -1;
     const ano = new Date().getFullYear();
+    const diasNoMes = mesIndex !== -1 ? new Date(ano, mesIndex + 1, 0).getDate() : 31;
     const feriados = (typeof obterFeriadosConfigurados === 'function') ? obterFeriadosConfigurados() : [];
     const observacoesDoMes = (frequenciaState.observacoesPorDia && frequenciaState.observacoesPorDia.mes === mes)
         ? frequenciaState.observacoesPorDia.dias
         : {};
 
-    return Array.from({length: 31}, (_, i) => i + 1)
+    return Array.from({length: diasNoMes}, (_, i) => i + 1)
         .map(dia => {
             const status = statusMes[dia];
             let marcador = '';
@@ -110,7 +111,20 @@ function atualizarIndicadoresDias() {
     const selectDia = document.getElementById('selectDia');
     const menu = document.getElementById('selectDiaMenu');
     if (!selectDia || !menu) return;
-    const diaSelecionado = parseInt(selectDia.value) || frequenciaState.diaAtual;
+    let diaSelecionado = parseInt(selectDia.value) || frequenciaState.diaAtual;
+
+    // Se o dia selecionado não existir no mês atual (ex: estava no dia 31
+    // e trocou pra um mês com menos dias, como Junho), reposiciona pro
+    // último dia válido desse mês.
+    const mesIndex = (typeof CONFIG !== 'undefined') ? CONFIG.MESES.indexOf(frequenciaState.mesAtual) : -1;
+    const diasNoMes = mesIndex !== -1 ? new Date(new Date().getFullYear(), mesIndex + 1, 0).getDate() : 31;
+    if (diaSelecionado > diasNoMes) {
+        diaSelecionado = diasNoMes;
+        selectDia.value = diaSelecionado;
+        frequenciaState.diaAtual = diaSelecionado;
+        atualizarTextoToggleDia();
+    }
+
     menu.innerHTML = gerarOpcoesDias(frequenciaState.mesAtual, diaSelecionado);
 }
 
