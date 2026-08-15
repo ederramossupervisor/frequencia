@@ -124,6 +124,39 @@ function carregarInterfaceConfiguracoes() {
         </div>
     ` : '';
 
+    // NOVO — Feriados: só o admin cadastra/remove (a lista em si continua
+    // visível pra todo mundo, só o formulário e os botões de remover é
+    // que somem). Ver mudança equivalente em usuarios.js — a lista
+    // passa a ser a mesma pra todo mundo, não mais por pessoa.
+    const formAdicionarFeriadoHtml_ = usuarioEhAdmin_() ? `
+        <div class="grid grid-2 gap-2">
+            <div class="form-group">
+                <label class="form-label" for="novoFeriadoData">
+                    <i class="fas fa-calendar-day"></i>
+                    Data
+                </label>
+                <input type="date" class="form-control" id="novoFeriadoData">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="novoFeriadoDescricao">
+                    <i class="fas fa-tag"></i>
+                    Descrição
+                </label>
+                <input type="text" class="form-control" id="novoFeriadoDescricao" placeholder="Ex: Aniversário do município">
+            </div>
+        </div>
+
+        <button class="btn btn-secondary" id="btnAdicionarFeriado">
+            <i class="fas fa-plus"></i>
+            Adicionar Feriado
+        </button>
+    ` : `
+        <small class="text-muted d-block mb-2">
+            <i class="fas fa-lock"></i>
+            Apenas o administrador pode cadastrar ou remover feriados.
+        </small>
+    `;
+
     container.innerHTML = `
         <div class="card mb-3" id="cardUsuarioAtual">
             <div class="card-header">
@@ -502,32 +535,12 @@ function carregarInterfaceConfiguracoes() {
                 <small class="text-muted d-block mb-3">
                     Usados para calcular dias úteis do mês e para pular corretamente
                     feriados ao registrar férias na aba Acompanhamento. Sábados e
-                    domingos já são considerados automaticamente — cadastre aqui só
-                    os feriados (nacionais, estaduais ou municipais) que valem pra você.
+                    domingos já são considerados automaticamente. Cadastrados pelo
+                    administrador e valem para todo mundo.
                 </small>
-                
-                <div class="grid grid-2 gap-2">
-                    <div class="form-group">
-                        <label class="form-label" for="novoFeriadoData">
-                            <i class="fas fa-calendar-day"></i>
-                            Data
-                        </label>
-                        <input type="date" class="form-control" id="novoFeriadoData">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="novoFeriadoDescricao">
-                            <i class="fas fa-tag"></i>
-                            Descrição
-                        </label>
-                        <input type="text" class="form-control" id="novoFeriadoDescricao" placeholder="Ex: Aniversário do município">
-                    </div>
-                </div>
-                
-                <button class="btn btn-secondary" id="btnAdicionarFeriado">
-                    <i class="fas fa-plus"></i>
-                    Adicionar Feriado
-                </button>
-                
+
+                ${formAdicionarFeriadoHtml_}
+
                 <div id="listaFeriados" class="lista-feriados mt-3"></div>
                 
                 <!-- Calculadora de Dias Úteis -->
@@ -621,7 +634,8 @@ function renderizarListaFeriados() {
     const container = document.getElementById('listaFeriados');
     const badge = document.getElementById('badgeFeriados');
     if (!container) return;
-    
+
+    const podeEditar = usuarioEhAdmin_();
     const feriados = obterFeriadosConfigurados().slice().sort((a, b) => a.data.localeCompare(b.data));
     
     if (badge) badge.textContent = `${feriados.length} cadastrado${feriados.length !== 1 ? 's' : ''}`;
@@ -637,27 +651,44 @@ function renderizarListaFeriados() {
             <div class="feriado-item">
                 <span class="feriado-data">${dia}/${mes}/${ano}</span>
                 <span class="feriado-descricao">${f.descricao || 'Feriado'}</span>
+                ${podeEditar ? `
                 <button class="feriado-remover" data-data="${f.data}" title="Remover">
                     <i class="fas fa-times"></i>
-                </button>
+                </button>` : ''}
             </div>
         `;
     }).join('');
-    
-    container.querySelectorAll('.feriado-remover').forEach(btn => {
-        btn.addEventListener('click', () => removerFeriado(btn.dataset.data));
-    });
+
+    if (podeEditar) {
+        container.querySelectorAll('.feriado-remover').forEach(btn => {
+            btn.addEventListener('click', () => removerFeriado(btn.dataset.data));
+        });
+    }
 }
 
-function removerFeriado(data) {
+async function removerFeriado(data) {
+    if (!usuarioEhAdmin_()) return;
+
+    const feriadoRemovido = obterFeriadosConfigurados().find(f => f.data === data);
     const feriados = obterFeriadosConfigurados().filter(f => f.data !== data);
     salvarFeriadosConfigurados(feriados);
     renderizarListaFeriados();
     atualizarCalculoDiasUteis();
-    mostrarNotificacao('Feriado removido', 'success', 1500);
 
-    if (typeof removerFeriadoUsuarioAPI === 'function' && typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) {
-        removerFeriadoUsuarioAPI(data);
+    if (typeof removerFeriadoUsuarioAPI !== 'function') {
+        mostrarNotificacao('Feriado removido', 'success', 1500);
+        return;
+    }
+
+    const resultado = await removerFeriadoUsuarioAPI(data);
+    if (resultado.success) {
+        mostrarNotificacao('Feriado removido', 'success', 1500);
+    } else if (feriadoRemovido) {
+        // Não removeu de verdade na aba Feriados — desfaz o otimista.
+        salvarFeriadosConfigurados([...obterFeriadosConfigurados(), feriadoRemovido]);
+        renderizarListaFeriados();
+        atualizarCalculoDiasUteis();
+        mostrarNotificacao(resultado.error || 'Não foi possível remover na planilha', 'error');
     }
 }
 
@@ -1027,6 +1058,8 @@ function configurarEventListenersConfiguracoes() {
     const btnAdicionarFeriado = document.getElementById('btnAdicionarFeriado');
     if (btnAdicionarFeriado) {
         btnAdicionarFeriado.addEventListener('click', async () => {
+            if (!usuarioEhAdmin_()) return;
+
             const dataInput = document.getElementById('novoFeriadoData');
             const descInput = document.getElementById('novoFeriadoDescricao');
             const data = dataInput?.value;
@@ -1043,10 +1076,8 @@ function configurarEventListenersConfiguracoes() {
                 return;
             }
             
-            // Atualiza local na hora (resposta rápida na tela) e também
-            // grava na planilha central de Usuários, se houver um usuário
-            // selecionado — assim o feriado fica disponível em qualquer
-            // aparelho que essa pessoa usar depois.
+            // Atualiza local na hora (resposta rápida na tela) — se a
+            // gravação na aba Feriados falhar, desfaz logo abaixo.
             feriados.push({ data, descricao: descricao || 'Feriado' });
             salvarFeriadosConfigurados(feriados);
             renderizarListaFeriados();
@@ -1054,11 +1085,21 @@ function configurarEventListenersConfiguracoes() {
             
             if (dataInput) dataInput.value = '';
             if (descInput) descInput.value = '';
-            
-            mostrarNotificacao('Feriado adicionado', 'success', 1500);
 
-            if (typeof adicionarFeriadoUsuarioAPI === 'function' && typeof obterUsuarioAtual === 'function' && obterUsuarioAtual()) {
-                adicionarFeriadoUsuarioAPI(data, descricao || 'Feriado');
+            if (typeof adicionarFeriadoUsuarioAPI !== 'function') {
+                mostrarNotificacao('Feriado adicionado', 'success', 1500);
+                return;
+            }
+
+            const resultado = await adicionarFeriadoUsuarioAPI(data, descricao || 'Feriado');
+            if (resultado.success) {
+                mostrarNotificacao('Feriado adicionado', 'success', 1500);
+            } else {
+                // Não salvou de verdade na aba Feriados — desfaz o otimista.
+                salvarFeriadosConfigurados(obterFeriadosConfigurados().filter(f => f.data !== data));
+                renderizarListaFeriados();
+                atualizarCalculoDiasUteis();
+                mostrarNotificacao(resultado.error || 'Não foi possível salvar na planilha', 'error');
             }
         });
     }

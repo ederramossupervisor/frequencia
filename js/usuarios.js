@@ -12,6 +12,16 @@
 // Acompanhamento, férias, e-docs) continua funcionando sem nenhuma
 // alteração — só passa a ser alimentado pela planilha central, não mais
 // digitado à mão.
+//
+// Feriados — só o admin cadastra, vale pra todo mundo: moram numa aba
+// própria chamada "Feriados", na mesma planilha de Usuários (uma linha
+// por feriado: Data | Descrição), não mais numa coluna por pessoa. A
+// coluna "Feriados" de cada linha em Usuários continua existindo mas não
+// é mais lida — pode ser limpa quando quiser. Toda leitura
+// (obterFeriadosGlobaisAPI, chamada por selecionarUsuario e
+// sincronizarUsuarioAtual) busca essa aba direto. Toda gravação
+// (adicionar/remover) só é permitida pra quem é admin (usuarioEhAdmin_(),
+// de configuracoes.js).
 
 /**
  * Busca o cabeçalho (Nome, Nº Funcional, Horário de Trabalho, Carga
@@ -277,36 +287,81 @@ async function definirEmailUsuarioAPI(email) {
 }
 
 /**
- * Grava um feriado na planilha central (linha da pessoa atual). Mesma
- * limitação de "no-cors" do resto do app — não confirma de verdade se
- * salvou, então quem chama também atualiza a lista local otimisticamente.
+ * Cadastra um feriado na aba "Feriados" da planilha central — uma lista
+ * só, vale pra todo mundo. Só quem é admin chega a chamar isso (o
+ * formulário em Configurações só aparece pra admin), mas confere de novo
+ * aqui como segunda trava. GET de propósito, igual as outras leituras —
+ * diferente da versão anterior (POST em no-cors, sem confirmação real),
+ * agora dá pra saber de verdade se salvou.
  */
 async function adicionarFeriadoUsuarioAPI(dataISO, descricao) {
-    const nome = obterUsuarioAtual();
-    if (!nome) return { success: false, error: 'Nenhum usuário selecionado' };
-
-    return enviarParaAppsScript({
-        operation: 'adicionarFeriadoUsuario',
-        sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
-        nome: nome,
-        data: dataISO,
-        descricao: descricao
-    });
+    if (typeof usuarioEhAdmin_ === 'function' && !usuarioEhAdmin_()) {
+        return { success: false, error: 'Apenas o administrador pode cadastrar feriados' };
+    }
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'adicionarFeriado',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            data: dataISO,
+            descricao: descricao || 'Feriado'
+        });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 }
 
 /**
- * Remove um feriado (pela data) da planilha central (linha da pessoa atual).
+ * Remove um feriado (pela data) da aba "Feriados" da planilha central.
+ * Mesma trava e mesmo motivo de ser GET de adicionarFeriadoUsuarioAPI.
  */
 async function removerFeriadoUsuarioAPI(dataISO) {
-    const nome = obterUsuarioAtual();
-    if (!nome) return { success: false, error: 'Nenhum usuário selecionado' };
+    if (typeof usuarioEhAdmin_ === 'function' && !usuarioEhAdmin_()) {
+        return { success: false, error: 'Apenas o administrador pode remover feriados' };
+    }
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'removerFeriado',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
+            data: dataISO
+        });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
 
-    return enviarParaAppsScript({
-        operation: 'removerFeriadoUsuario',
-        sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
-        nome: nome,
-        data: dataISO
-    });
+/**
+ * Busca a lista de feriados "oficial" — direto da aba "Feriados" da
+ * planilha central (uma lista só, não mais por pessoa). É a fonte única
+ * que selecionarUsuario e sincronizarUsuarioAtual usam. Leitura aberta,
+ * sem checar admin — todo mundo VÊ a lista, só não pode editar.
+ */
+async function obterFeriadosGlobaisAPI() {
+    try {
+        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
+            return { success: false, error: 'URL do Apps Script não configurada' };
+        }
+        const params = new URLSearchParams({
+            action: 'listarFeriados',
+            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS
+        });
+        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
+        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
+        return await resposta.json();
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 }
 
 /**
@@ -327,7 +382,12 @@ async function selecionarUsuario(nome) {
         sheetIdFrequencia: resultado.sheetIdFrequencia,
         sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
     });
-    salvarFeriadosConfigurados(resultado.feriados || []);
+
+    // Feriados agora vêm sempre da aba "Feriados" (fonte única), não
+    // mais da linha da pessoa que está entrando — ver obterFeriadosGlobaisAPI.
+    const feriadosGlobais = await obterFeriadosGlobaisAPI();
+    salvarFeriadosConfigurados(feriadosGlobais.success ? (feriadosGlobais.feriados || []) : (resultado.feriados || []));
+
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
     try { localStorage.setItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO, resultado.email || ''); } catch (e) {}
@@ -362,7 +422,12 @@ async function sincronizarUsuarioAtual(silencioso) {
         sheetIdFrequencia: resultado.sheetIdFrequencia,
         sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
     });
-    salvarFeriadosConfigurados(resultado.feriados || []);
+
+    // Feriados agora vêm sempre da aba "Feriados" (fonte única) — mesmo
+    // comentário de selecionarUsuario, ver obterFeriadosGlobaisAPI.
+    const feriadosGlobais = await obterFeriadosGlobaisAPI();
+    salvarFeriadosConfigurados(feriadosGlobais.success ? (feriadosGlobais.feriados || []) : (resultado.feriados || []));
+
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_FREQUENCIA_ANTERIORES, resultado.sheetIdsFrequenciaAnteriores || {});
     salvarSheetIdsAnteriores(CONFIG.STORAGE_KEYS.SHEET_IDS_ACOMPANHAMENTO_ANTERIORES, resultado.sheetIdsAcompanhamentoAnteriores || {});
     try { localStorage.setItem(CONFIG.STORAGE_KEYS.EMAIL_USUARIO, resultado.email || ''); } catch (e) {}
@@ -615,6 +680,7 @@ if (typeof window !== 'undefined') {
     window.criarUsuarioComTemplatesAPI = criarUsuarioComTemplatesAPI;
     window.adicionarFeriadoUsuarioAPI = adicionarFeriadoUsuarioAPI;
     window.removerFeriadoUsuarioAPI = removerFeriadoUsuarioAPI;
+    window.obterFeriadosGlobaisAPI = obterFeriadosGlobaisAPI;
     window.definirEmailUsuarioAPI = definirEmailUsuarioAPI;
     window.selecionarUsuario = selecionarUsuario;
     window.sincronizarUsuarioAtual = sincronizarUsuarioAtual;

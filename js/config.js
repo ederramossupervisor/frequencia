@@ -13,9 +13,10 @@ const CONFIG = {
 
     // Planilha central de usuários — colunas: Nome | Link Frequência |
     // Link Acompanhamento | Feriados. É de onde o app busca, pelo nome
-    // escolhido na tela inicial, os IDs das duas planilhas da pessoa e os
-    // feriados cadastrados por ela (substitui o que antes ficava só no
-    // localStorage do navegador).
+    // escolhido na tela inicial, os IDs das duas planilhas da pessoa.
+    // Os feriados moram numa aba própria dessa mesma planilha ("Feriados",
+    // Data | Descrição) — a coluna Feriados aqui embaixo não é mais lida
+    // (ver obterFeriadosGlobaisAPI em usuarios.js).
     SHEET_ID_USUARIOS: "1lO6qdy3VJeb3MEfYiso26BjNKFNQu7UBqw3On3a1f9E",
     
     // Lista de meses para os dropdowns
