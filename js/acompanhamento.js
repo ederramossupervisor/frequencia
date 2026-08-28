@@ -395,6 +395,64 @@ function carregarInterfaceAcompanhamento() {
                 <div id="feriasPreview" class="mt-3"></div>
             </div>
         </div>
+
+        <!-- Observação Livre — anotar algo no Acompanhamento sem
+             estar preso a um código nem a um horário. Serve, por
+             exemplo, pra justificar um erro no preenchimento da
+             planilha física. -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-sticky-note"></i>
+                    Observação Livre
+                </h2>
+                <span class="badge badge-warning">Sem código nem horário</span>
+            </div>
+            <div class="card-body">
+                <small class="text-muted d-block mb-3">
+                    Use para registrar algo na aba de Acompanhamento que não é uma
+                    justificativa de horas — por exemplo, explicar um erro no
+                    preenchimento da planilha física.
+                </small>
+
+                <div class="grid grid-2 gap-3">
+                    <div class="form-group">
+                        <label class="form-label" for="dataObservacaoLivre">
+                            <i class="fas fa-calendar-day"></i>
+                            Data
+                        </label>
+                        <input type="date" class="form-control" id="dataObservacaoLivre" value="${getDataAtualBrasiliaISO()}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="selectMesObservacaoLivre">
+                            <i class="fas fa-calendar-alt"></i>
+                            Mês da Planilha
+                        </label>
+                        <select class="form-control" id="selectMesObservacaoLivre">
+                            ${CONFIG.MESES.map(mes =>
+                                `<option value="${mes}" ${mes === acompanhamentoState.mesAtual ? 'selected' : ''}>
+                                    ${mes}
+                                </option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group mt-2">
+                    <label class="form-label" for="textoObservacaoLivre">
+                        <i class="fas fa-edit"></i>
+                        Observação <span style="color: red;">*</span>
+                    </label>
+                    <textarea class="form-control" id="textoObservacaoLivre" rows="3"
+                              placeholder="Digite a observação..." maxlength="300"></textarea>
+                </div>
+
+                <button class="btn btn-primary btn-block mt-3" id="btnSalvarObservacaoLivre">
+                    <i class="fas fa-save"></i>
+                    Salvar Observação
+                </button>
+            </div>
+        </div>
     `;
     
     calcularHorasJustificativa();
@@ -406,6 +464,9 @@ function configurarEventListenersAcompanhamento() {
     if (btnCalcularFerias) {
         btnCalcularFerias.addEventListener('click', calcularEExibirPreviewFerias);
     }
+
+    // Observação Livre
+    document.getElementById('btnSalvarObservacaoLivre')?.addEventListener('click', salvarObservacaoLivreHandler);
     
     // Data e mês
     document.getElementById('dataJustificativa')?.addEventListener('change', (e) => {
@@ -611,6 +672,59 @@ function atualizarEstadoDuracaoAlmoco() {
     
     if (campo) campo.disabled = !fezAlmoco;
     if (wrapper) wrapper.style.opacity = fezAlmoco ? '1' : '0.5';
+}
+
+// ============================================
+// OBSERVAÇÃO LIVRE — anota algo na aba de Acompanhamento sem exigir
+// código nem horário (ex: justificar um erro no preenchimento da
+// planilha física). Usa a função salvarObservacao() de js/api.js.
+// ============================================
+async function salvarObservacaoLivreHandler() {
+    const dataInput = document.getElementById('dataObservacaoLivre');
+    const mesSelect = document.getElementById('selectMesObservacaoLivre');
+    const textoTextarea = document.getElementById('textoObservacaoLivre');
+
+    const texto = textoTextarea?.value.trim() || '';
+
+    if (!texto) {
+        mostrarNotificacao('Digite o texto da observação', 'error');
+        textoTextarea?.focus();
+        return;
+    }
+    if (!dataInput?.value) {
+        mostrarNotificacao('Informe a data da observação', 'error');
+        return;
+    }
+    if (!mesSelect?.value) {
+        mostrarNotificacao('Selecione o mês', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btnSalvarObservacaoLivre');
+    const htmlOriginalBtn = btn?.innerHTML;
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+        btn.disabled = true;
+    }
+
+    let resultado;
+    try {
+        resultado = await salvarObservacao({
+            mes: mesSelect.value,
+            data: dataInput.value,
+            texto: texto
+        });
+    } finally {
+        if (btn) {
+            btn.innerHTML = htmlOriginalBtn;
+            btn.disabled = false;
+        }
+    }
+
+    if (resultado && resultado.success) {
+        textoTextarea.value = '';
+        dataInput.value = getDataAtualBrasiliaISO();
+    }
 }
 
 function limparJustificativa() {
