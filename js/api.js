@@ -407,6 +407,12 @@ async function salvarObservacao(dados) {
             texto: dados.texto,
             timestamp: new Date().toISOString()
         };
+
+        // Data escolhida pela pessoa (formato YYYY-MM-DD), opcional — se
+        // não vier, o Apps Script usa a data de hoje como antes.
+        if (dados.data) {
+            dadosEnvio.data = dados.data;
+        }
         
         // Envia para o Apps Script
         const resultado = await enviarParaAppsScript(dadosEnvio);
