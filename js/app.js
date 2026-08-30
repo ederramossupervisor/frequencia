@@ -328,57 +328,22 @@ function atualizarStatusConexao() {
 }
 
 /**
- * Mostra mensagem de boas-vindas
+ * Mostra aviso pra terminar a configuração, se ainda faltar.
+ * (O modal antigo de "Bem-vindo" com o passo a passo de copiar
+ * templates foi removido — as instruções não valiam mais pro fluxo
+ * atual de seleção de usuário/planilha central.)
  */
 function mostrarBoasVindas() {
-    // Verifica se é a primeira vez
-    const jaViu = localStorage.getItem('primeira_vez');
-    
-    if (!jaViu) {
-        // Mostra modal de boas-vindas
-        const conteudo = `
-            <div class="text-center">
-                <div class="welcome-icon mb-3">
-                    <i class="fas fa-calendar-check fa-3x" style="color: var(--verde-musgo);"></i>
-                </div>
-                <h3 class="mb-3">Bem-vindo ao Controle de Frequência!</h3>
-                <p class="mb-3">Para começar a usar o aplicativo:</p>
-                <ol class="text-left mb-3">
-                    <li>Vá para a aba <strong>Configurações</strong></li>
-                    <li>Clique nos botões para abrir os templates</li>
-                    <li>Faça cópias das planilhas para seu Drive</li>
-                    <li>Cole os IDs das suas cópias no aplicativo</li>
-                </ol>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
-                    <small>Você pode instalar este aplicativo no seu celular ou computador para uso offline.</small>
-                </div>
-            </div>
-        `;
-        
-        mostrarModal(
-            'Bem-vindo! 👋',
-            conteudo,
-            `
-                <button class="btn btn-primary" onclick="fecharModal(); localStorage.setItem('primeira_vez', 'true');">
-                    <i class="fas fa-play-circle"></i>
-                    Vamos Começar!
-                </button>
-            `
-        );
-    } else {
-        // Verifica se as configurações estão completas
-        const config = verificarConfiguracoesMinimas();
-        
-        if (!config.todasConfiguradas) {
-            setTimeout(() => {
-                mostrarNotificacao(
-                    'Configure suas planilhas na aba Configurações para começar a usar.',
-                    'info',
-                    8000
-                );
-            }, 2000);
-        }
+    const config = verificarConfiguracoesMinimas();
+
+    if (!config.todasConfiguradas) {
+        setTimeout(() => {
+            mostrarNotificacao(
+                'Configure suas planilhas na aba Configurações para começar a usar.',
+                'info',
+                8000
+            );
+        }, 2000);
     }
 }
 
