@@ -4,8 +4,7 @@
 const CONFIG = {
     // URL do SEU Apps Script (você vai colocar aqui depois de publicar)
     APP_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyIrY21QVYbtSYqEFw_OZHoD5poKjMAjEMCEb1UsPKNOzXc_ps1Bv2A3X8aC60jNueUww/exec",
-    SUPABASE_URL: "https://opfsntlbizzxmjgisnje.supabase.co",
-    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZnNudGxiaXp6eG1qZ2lzbmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2Mjg0MDAsImV4cCI6MjEwNTIwNDQwMH0.ksTlCyUyQbtVocLDYZGzkhX7JtFZvR-01us6i0YNBpc", // Project Settings > API Keys > a anon/public (não a service_role) — essa aqui não consegui buscar sozinho, precisei de aprovação que não veio
+    
     // IDs das suas planilhas templates (para os botões "Abrir Template")
     TEMPLATE_IDS: {
         FREQUENCIA: "1ZySSwFVpWmYBfumdndJvIQMswqOzhYI2FyNs2uSIZiA",
@@ -19,6 +18,12 @@ const CONFIG = {
     // Data | Descrição) — a coluna Feriados aqui embaixo não é mais lida
     // (ver obterFeriadosGlobaisAPI em usuarios.js).
     SHEET_ID_USUARIOS: "1lO6qdy3VJeb3MEfYiso26BjNKFNQu7UBqw3On3a1f9E",
+
+    // NOVO — Supabase: fonte de dados do dia a dia (frequência,
+    // justificativas, observações). A planilha continua existindo e
+    // sendo atualizada, agora via webhook (Supabase -> Apps Script).
+    SUPABASE_URL: "https://opfsntlbizzxmjgisnje.supabase.co",
+    SUPABASE_ANON_KEY: "COLE_AQUI_A_ANON_KEY", // Project Settings > API Keys > anon/public (NÃO a service_role)
     
     // Lista de meses para os dropdowns
     MESES: [
@@ -49,7 +54,6 @@ const CONFIG = {
         USER_SETTINGS: "user_settings",
         FERIADOS: "feriados_personalizados",
         USUARIO_NOME: "usuario_nome_selecionado",
-        USUARIO_ID_SUPABASE: "usuario_id_supabase",
         // NOVO — virada de ano: mapas {ano: sheetId} de planilhas de anos
         // anteriores da pessoa selecionada, cacheados localmente pra uso
         // ao aplicar férias que cruzam dezembro/janeiro.
@@ -63,7 +67,12 @@ const CONFIG = {
         // NOVO — e-mail da pessoa selecionada, cacheado localmente só pra
         // pré-preencher o campo em Configurações (o valor "de verdade"
         // sempre vem da planilha central de Usuários).
-        EMAIL_USUARIO: "email_usuario_selecionado"
+        EMAIL_USUARIO: "email_usuario_selecionado",
+        // NOVO — id (uuid) da pessoa selecionada na tabela usuarios do
+        // Supabase, resolvido por resolverUsuarioIdSupabase (ver
+        // js/supabase-sync.js) ao entrar. Usado pelas gravações de
+        // frequência/justificativa/observação.
+        USUARIO_ID_SUPABASE: "usuario_id_supabase"
     },
 
     // Ano corrente do app — usado como "ano de partida" pra saber se um
