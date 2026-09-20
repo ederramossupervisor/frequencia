@@ -255,23 +255,29 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Envia dados de frequência
+ * Envia dados de frequência — grava direto no Supabase; a planilha é
+ * atualizada pelo webhook (ver js/supabase-sync.js).
  */
 async function salvarFrequenciaAPI(dados) {
     return salvarFrequenciaSupabase(dados);
 }
+
 /**
- * Envia dados de justificativa
+ * Envia dados de justificativa — grava direto no Supabase; a planilha
+ * é atualizada pelo webhook (ver js/supabase-sync.js).
  */
 async function salvarJustificativaAPI(dados) {
     return salvarJustificativaSupabase(dados);
 }
+
 /**
- * Envia dados de observação
+ * Envia dados de observação — vira uma justificativa sem código no
+ * Supabase; a planilha é atualizada pelo webhook (ver js/supabase-sync.js).
  */
 async function salvarObservacao(dados) {
     return salvarObservacaoSupabase(dados);
 }
+
 /**
  * Salva backup local dos dados (para caso falhe o envio)
  */
