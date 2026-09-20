@@ -23,7 +23,7 @@ const CONFIG = {
     // justificativas, observações). A planilha continua existindo e
     // sendo atualizada, agora via webhook (Supabase -> Apps Script).
     SUPABASE_URL: "https://opfsntlbizzxmjgisnje.supabase.co",
-    SUPABASE_ANON_KEY: "COLE_AQUI_A_ANON_KEY", // Project Settings > API Keys > anon/public (NÃO a service_role)
+    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZnNudGxiaXp6eG1qZ2lzbmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2Mjg0MDAsImV4cCI6MjEwNTIwNDQwMH0.ksTlCyUyQbtVocLDYZGzkhX7JtFZvR-01us6i0YNBpc", // Project Settings > API Keys > anon/public (NÃO a service_role)
     
     // Lista de meses para os dropdowns
     MESES: [
