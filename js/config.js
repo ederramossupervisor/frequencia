@@ -49,6 +49,7 @@ const CONFIG = {
         USER_SETTINGS: "user_settings",
         FERIADOS: "feriados_personalizados",
         USUARIO_NOME: "usuario_nome_selecionado",
+        USUARIO_ID_SUPABASE: "usuario_id_supabase",
         // NOVO — virada de ano: mapas {ano: sheetId} de planilhas de anos
         // anteriores da pessoa selecionada, cacheados localmente pra uso
         // ao aplicar férias que cruzam dezembro/janeiro.
