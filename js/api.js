@@ -258,184 +258,20 @@ if (typeof window !== 'undefined') {
  * Envia dados de frequência
  */
 async function salvarFrequenciaAPI(dados) {
-    try {
-        // Validações básicas
-        if (!dados.mes || !dados.dia) {
-            throw new Error('Mês e dia são obrigatórios');
-        }
-        
-        // Carrega configurações do usuário
-        const config = carregarConfiguracoes();
-        
-        if (!config.sheetIdFrequencia) {
-            throw new Error('ID da planilha de frequência não configurado');
-        }
-        
-        // Prepara dados para envio
-        const dadosEnvio = {
-            operation: 'saveFrequencia',
-            sheetIdFrequencia: config.sheetIdFrequencia,
-            userId: 'usuario_' + Date.now(), // Identificador único
-            month: dados.mes,
-            day: dados.dia,
-            timestamp: new Date().toISOString()
-        };
-        
-        // Adiciona campos preenchidos
-        if (dados.entradaManha) dadosEnvio.entradaManha = formatarHora(dados.entradaManha);
-        if (dados.saidaManha) dadosEnvio.saidaManha = formatarHora(dados.saidaManha);
-        if (dados.entradaTarde) dadosEnvio.entradaTarde = formatarHora(dados.entradaTarde);
-        if (dados.saidaTarde) dadosEnvio.saidaTarde = formatarHora(dados.saidaTarde);
-        
-        // Calcula horas trabalhadas se tiver todos os horários
-        if (dados.entradaManha && dados.saidaTarde) {
-            const horasManha = calcularHorasTrabalhadas(dados.entradaManha, dados.saidaManha || '12:00');
-            const horasTarde = calcularHorasTrabalhadas(dados.entradaTarde || '13:00', dados.saidaTarde);
-            
-            // Soma as horas (simplificado)
-            dadosEnvio.horasTrabalhadas = horasManha; // Pode ajustar para cálculo mais preciso
-        }
-        
-        // Envia para o Apps Script
-        const resultado = await enviarParaAppsScript(dadosEnvio);
-        
-        if (resultado.success) {
-            // Salva localmente para backup
-            salvarBackupLocal('frequencia', dadosEnvio);
-            
-            mostrarNotificacao(
-                `✅ Frequência do dia ${dados.dia} salva com sucesso!`,
-                'success'
-            );
-        }
-        
-        return resultado;
-        
-    } catch (error) {
-        console.error('Erro ao salvar frequência:', error);
-        mostrarNotificacao(`❌ Erro ao salvar frequência: ${error.message}`, 'error');
-        return {
-            success: false,
-            error: error.message
-        };
-    }
+    return salvarFrequenciaSupabase(dados);
 }
-
 /**
  * Envia dados de justificativa
  */
 async function salvarJustificativaAPI(dados) {
-    try {
-        // Validações básicas
-        if (!dados.mes || !dados.codigo || !dados.data) {
-            throw new Error('Mês, código e data são obrigatórios');
-        }
-        
-        // Carrega configurações do usuário
-        const config = carregarConfiguracoes();
-        
-        if (!config.sheetIdFrequencia || !config.sheetIdAcompanhamento) {
-            throw new Error('Configure ambas as planilhas');
-        }
-        
-        // Prepara dados para envio
-        const dadosEnvio = {
-            operation: 'saveJustificativaCompleta',
-            sheetIdFrequencia: config.sheetIdFrequencia,
-            sheetIdAcompanhamento: config.sheetIdAcompanhamento,
-            month: dados.mes,
-            day: dados.dia,
-            dataJustificativa: dados.data,
-            codigo: dados.codigo,
-            horaInicio: formatarHora(dados.horaInicio) || '08:00',
-            horaFim: formatarHora(dados.horaFim) || '17:00',
-            fezAlmoco: dados.fezAlmoco || false,
-            horasLiquidas: dados.horasLiquidas || '08:00',
-            observacao: dados.observacao || '',
-            timestamp: new Date().toISOString()
-        };
-        
-        console.log('Enviando justificativa:', dadosEnvio);
-        
-        // Envia para o Apps Script
-        const resultado = await enviarParaAppsScript(dadosEnvio);
-        
-        if (resultado.success) {
-            // Salva localmente para backup
-            salvarBackupLocal('justificativa', dadosEnvio);
-            
-            mostrarNotificacao(
-                `✅ Justificativa ${dados.codigo} salva com sucesso!`,
-                'success'
-            );
-        }
-        
-        return resultado;
-        
-    } catch (error) {
-        console.error('Erro ao salvar justificativa:', error);
-        mostrarNotificacao(`❌ Erro ao salvar justificativa: ${error.message}`, 'error');
-        return {
-            success: false,
-            error: error.message
-        };
-    }
+    return salvarJustificativaSupabase(dados);
 }
-
 /**
  * Envia dados de observação
  */
 async function salvarObservacao(dados) {
-    try {
-        // Validações básicas
-        if (!dados.mes || !dados.texto) {
-            throw new Error('Mês e texto são obrigatórios');
-        }
-        
-        // Carrega configurações do usuário
-        const config = carregarConfiguracoes();
-        
-        if (!config.sheetIdAcompanhamento) {
-            throw new Error('ID da planilha de acompanhamento não configurado');
-        }
-        
-        // Prepara dados para envio
-        const dadosEnvio = {
-            operation: 'saveObservacao',
-            sheetIdAcompanhamento: config.sheetIdAcompanhamento,
-            month: dados.mes,
-            texto: dados.texto,
-            timestamp: new Date().toISOString()
-        };
-
-        // Data escolhida pela pessoa (formato YYYY-MM-DD), opcional — se
-        // não vier, o Apps Script usa a data de hoje como antes.
-        if (dados.data) {
-            dadosEnvio.data = dados.data;
-        }
-        
-        // Envia para o Apps Script
-        const resultado = await enviarParaAppsScript(dadosEnvio);
-        
-        if (resultado.success) {
-            // Salva localmente para backup
-            salvarBackupLocal('observacao', dadosEnvio);
-            
-            mostrarNotificacao('✅ Observação salva com sucesso!', 'success');
-        }
-        
-        return resultado;
-        
-    } catch (error) {
-        console.error('Erro ao salvar observação:', error);
-        mostrarNotificacao(`❌ Erro ao salvar observação: ${error.message}`, 'error');
-        return {
-            success: false,
-            error: error.message
-        };
-    }
+    return salvarObservacaoSupabase(dados);
 }
-
 /**
  * Salva backup local dos dados (para caso falhe o envio)
  */
