@@ -383,6 +383,16 @@ async function selecionarUsuario(nome) {
         sheetIdAcompanhamento: resultado.sheetIdAcompanhamento
     });
 
+    // NOVO — resolve e cacheia o id (uuid) dessa pessoa no Supabase,
+    // usado por salvarFrequenciaSupabase/salvarJustificativaSupabase/
+    // salvarObservacaoSupabase (ver js/supabase-sync.js).
+    const usuarioIdSupabase = await resolverUsuarioIdSupabase(nome);
+    if (usuarioIdSupabase) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.USUARIO_ID_SUPABASE, usuarioIdSupabase);
+    } else {
+        console.warn(`Pessoa "${nome}" não encontrada na tabela usuarios do Supabase.`);
+    }
+
     // Feriados agora vêm sempre da aba "Feriados" (fonte única), não
     // mais da linha da pessoa que está entrando — ver obterFeriadosGlobaisAPI.
     const feriadosGlobais = await obterFeriadosGlobaisAPI();
