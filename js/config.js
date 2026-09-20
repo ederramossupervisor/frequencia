@@ -4,7 +4,8 @@
 const CONFIG = {
     // URL do SEU Apps Script (você vai colocar aqui depois de publicar)
     APP_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyIrY21QVYbtSYqEFw_OZHoD5poKjMAjEMCEb1UsPKNOzXc_ps1Bv2A3X8aC60jNueUww/exec",
-    
+    SUPABASE_URL: "https://opfsntlbizzxmjgisnje.supabase.co",
+    SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wZnNudGxiaXp6eG1qZ2lzbmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2Mjg0MDAsImV4cCI6MjEwNTIwNDQwMH0.ksTlCyUyQbtVocLDYZGzkhX7JtFZvR-01us6i0YNBpc", // Project Settings > API Keys > a anon/public (não a service_role) — essa aqui não consegui buscar sozinho, precisei de aprovação que não veio
     // IDs das suas planilhas templates (para os botões "Abrir Template")
     TEMPLATE_IDS: {
         FREQUENCIA: "1ZySSwFVpWmYBfumdndJvIQMswqOzhYI2FyNs2uSIZiA",
