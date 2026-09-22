@@ -279,6 +279,30 @@ async function salvarObservacao(dados) {
 }
 
 /**
+ * Apaga o registro de frequência do dia — também remove da planilha
+ * (ver js/supabase-sync.js).
+ */
+async function excluirFrequenciaAPI(dados) {
+    return excluirFrequenciaSupabase(dados);
+}
+
+/**
+ * Lista as justificativas já lançadas num mês, pra tela de
+ * Acompanhamento oferecer a opção de excluir.
+ */
+async function listarJustificativasAPI(mes) {
+    return listarJustificativasSupabase(mes);
+}
+
+/**
+ * Apaga uma justificativa pelo id — também remove código, horas e
+ * observação da planilha (ver js/supabase-sync.js).
+ */
+async function excluirJustificativaAPI(id) {
+    return excluirJustificativaSupabase(id);
+}
+
+/**
  * Salva backup local dos dados (para caso falhe o envio)
  */
 function salvarBackupLocal(tipo, dados) {
