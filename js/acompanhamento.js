@@ -1335,101 +1335,74 @@ async function aplicarFeriasAPI(dados) {
     }
 }
 
-async function salvarJustificativaAPI(dados) {
-    try {
-        console.log('📤 Iniciando envio de justificativa para API...');
-        console.log('📦 Dados recebidos:', dados);
-        
-        // Carrega configurações do usuário
-        const config = carregarConfiguracoes();
-        console.log('⚙️ Configurações carregadas:', config);
-        
-        if (!config.sheetIdFrequencia || !config.sheetIdAcompanhamento) {
-            throw new Error('Configure ambas as planilhas');
-        }
-        
-        // Verifica se a função enviarParaAppsScript está disponível
-        if (typeof enviarParaAppsScript === 'undefined') {
-            console.error('❌ FUNÇÃO CRÍTICA NÃO DISPONÍVEL: enviarParaAppsScript');
-            throw new Error('Função de envio não disponível');
-        }
-        
-        console.log('✅ Função enviarParaAppsScript disponível');
-        
-        // Prepara dados para envio - usando saveJustificativaCompleta
-        const dadosEnvio = {
-            operation: 'saveJustificativaCompleta',
-            sheetIdFrequencia: config.sheetIdFrequencia,
-            sheetIdAcompanhamento: config.sheetIdAcompanhamento,
-            month: dados.mes.toUpperCase(),
-            day: dados.dia,
-            dataJustificativa: dados.data,
-            codigo: dados.codigo,
-            horaInicio: formatarHora(dados.horaInicio) || '08:00',
-            horaFim: formatarHora(dados.horaFim) || '17:00',
-            fezAlmoco: dados.fezAlmoco || false,
-            horasLiquidas: dados.horasLiquidas || '08:00',
-            observacao: dados.observacao || '',
-            timestamp: new Date().toISOString()
-        };
-        
-        console.log('📤 Dados para envio:', dadosEnvio);
-        
-        // Envia para o Apps Script
-        const resultado = await enviarParaAppsScript(dadosEnvio);
-        
-        console.log('📥 Resultado do envio:', resultado);
-        
-        return resultado;
-        
-    } catch (error) {
-        console.error('❌ Erro ao salvar justificativa:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
 async function atualizarEstatisticas() {
     const elemento = document.getElementById('totalJustificativasMes');
     const listaElemento = document.getElementById('listaJustificativasMes');
     if (!elemento) return; // Card não está na tela (ex: config incompleta)
     
-    const config = carregarConfiguracoes();
     const mes = acompanhamentoState.mesAtual || obterMesAtual();
-    
-    if (!config.sheetIdAcompanhamento || typeof buscarStatusAcompanhamentoAPI !== 'function') {
-        elemento.textContent = '--';
-        if (listaElemento) listaElemento.innerHTML = '';
-        return;
-    }
     
     elemento.textContent = '...';
     if (listaElemento) listaElemento.innerHTML = '';
     
-    const resultado = await buscarStatusAcompanhamentoAPI(config.sheetIdAcompanhamento, mes);
+    const resultado = await listarJustificativasAPI(mes);
     
     if (!resultado || !resultado.success) {
         elemento.textContent = '--';
-        console.warn('Não foi possível carregar o resumo do mês:', resultado?.error);
+        console.warn('Não foi possível carregar as justificativas do mês:', resultado?.error);
         return;
     }
     
-    elemento.textContent = String(resultado.totalJustificativas);
+    const justificativas = resultado.justificativas || [];
+    elemento.textContent = String(justificativas.length);
     
     if (listaElemento) {
         listaElemento.innerHTML = '';
-        const justificativas = resultado.justificativas || [];
-        
+
         justificativas.forEach(j => {
+            const infoCodigo = (CONFIG.CODIGOS_JUSTIFICATIVA || []).find(c => c.codigo === j.codigo);
+            const descricaoCodigo = infoCodigo ? infoCodigo.descricao : (j.codigo || 'Observação');
+            const periodo = j.data_inicio === j.data_fim
+                ? formatarData(j.data_inicio)
+                : `${formatarData(j.data_inicio)} a ${formatarData(j.data_fim)}`;
+
             const linha = document.createElement('div');
-            linha.className = 'small text-muted border-bottom py-1';
+            linha.className = 'small text-muted border-bottom py-1 d-flex justify-content-between align-items-center';
+
+            const texto = document.createElement('span');
             // textContent (não innerHTML) porque código/data/observação vêm
             // da planilha do usuário - evita qualquer risco de HTML injetado.
-            linha.textContent = `${j.codigo} - ${j.data} - ${j.observacao}`;
+            texto.textContent = `${descricaoCodigo} - ${periodo}${j.observacao ? ' - ' + j.observacao : ''}`;
+
+            const botaoExcluir = document.createElement('button');
+            botaoExcluir.className = 'btn btn-sm btn-link text-danger p-0 ms-2';
+            botaoExcluir.title = 'Excluir';
+            botaoExcluir.innerHTML = '<i class="fas fa-trash"></i>';
+            botaoExcluir.onclick = () => excluirJustificativaDoMes(j.id);
+
+            linha.appendChild(texto);
+            linha.appendChild(botaoExcluir);
             listaElemento.appendChild(linha);
         });
+    }
+}
+
+/**
+ * Exclui uma justificativa lançada (botão de lixeira na lista do
+ * mês). O webhook cuida de limpar código/horas na Frequência e
+ * remover a linha de detalhes e a observação correspondentes no
+ * Acompanhamento, reorganizando a planilha sem deixar buraco.
+ */
+async function excluirJustificativaDoMes(id) {
+    if (!confirm('Excluir esta justificativa? Isso também remove o código, as horas e a observação da planilha.')) return;
+
+    const resultado = await excluirJustificativaAPI(id);
+
+    if (resultado.success) {
+        mostrarNotificacao('Justificativa excluída.', 'success');
+        atualizarEstatisticas();
+    } else {
+        mostrarNotificacao(`Erro ao excluir: ${resultado.error}`, 'error');
     }
 }
 
