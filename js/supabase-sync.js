@@ -179,10 +179,124 @@ async function salvarObservacaoSupabase(dados) {
     }
 }
 
+/**
+ * Apaga o registro de frequência do dia — remove também da planilha,
+ * via o mesmo webhook que grava (agora também escuta o evento DELETE).
+ */
+async function excluirFrequenciaSupabase(dados) {
+    try {
+        if (!dados.mes || !dados.dia) {
+            throw new Error('Mês e dia são obrigatórios');
+        }
+
+        const usuarioId = obterUsuarioIdSupabaseAtual();
+        if (!usuarioId) {
+            throw new Error('Usuário não vinculado ao Supabase — selecione a pessoa de novo');
+        }
+
+        const indiceMes = CONFIG.MESES.indexOf(dados.mes);
+        const dataISO = `${CONFIG.ANO_ATUAL}-${String(indiceMes + 1).padStart(2, '0')}-${String(dados.dia).padStart(2, '0')}`;
+
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/registros_frequencia?usuario_id=eq.${usuarioId}&data=eq.${dataISO}`;
+        const resposta = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                Prefer: 'return=minimal'
+            }
+        });
+
+        if (!resposta.ok) {
+            const texto = await resposta.text().catch(() => '');
+            throw new Error(`Supabase ${resposta.status}: ${texto}`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('Erro ao excluir frequência no Supabase:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Lista as justificativas do usuário atual num mês (ano corrente),
+ * pra pessoa escolher qual excluir. Cada uma vem com o id (uuid) que
+ * excluirJustificativaSupabase espera.
+ */
+async function listarJustificativasSupabase(mes) {
+    try {
+        const usuarioId = obterUsuarioIdSupabaseAtual();
+        if (!usuarioId) {
+            return { success: false, error: 'Usuário não vinculado ao Supabase', justificativas: [] };
+        }
+
+        const indiceMes = CONFIG.MESES.indexOf(mes);
+        const ano = CONFIG.ANO_ATUAL;
+        const inicioMes = `${ano}-${String(indiceMes + 1).padStart(2, '0')}-01`;
+        const ultimoDia = new Date(ano, indiceMes + 1, 0).getDate();
+        const fimMes = `${ano}-${String(indiceMes + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/justificativas?usuario_id=eq.${usuarioId}` +
+            `&data_inicio=gte.${inicioMes}&data_inicio=lte.${fimMes}&order=data_inicio.asc`;
+
+        const resposta = await fetch(url, {
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+            }
+        });
+
+        if (!resposta.ok) throw new Error(`Supabase ${resposta.status}`);
+
+        const linhas = await resposta.json();
+        return { success: true, justificativas: linhas };
+
+    } catch (error) {
+        console.error('Erro ao listar justificativas no Supabase:', error);
+        return { success: false, error: error.message, justificativas: [] };
+    }
+}
+
+/**
+ * Apaga uma justificativa pelo id. O webhook (evento DELETE) cuida de
+ * limpar código/horas na Frequência e remover a linha de detalhes e a
+ * observação correspondentes na planilha de Acompanhamento, sem
+ * deixar buraco.
+ */
+async function excluirJustificativaSupabase(id) {
+    try {
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/justificativas?id=eq.${id}`;
+        const resposta = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                Prefer: 'return=minimal'
+            }
+        });
+
+        if (!resposta.ok) {
+            const texto = await resposta.text().catch(() => '');
+            throw new Error(`Supabase ${resposta.status}: ${texto}`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('Erro ao excluir justificativa no Supabase:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.resolverUsuarioIdSupabase = resolverUsuarioIdSupabase;
     window.obterUsuarioIdSupabaseAtual = obterUsuarioIdSupabaseAtual;
     window.salvarFrequenciaSupabase = salvarFrequenciaSupabase;
     window.salvarJustificativaSupabase = salvarJustificativaSupabase;
     window.salvarObservacaoSupabase = salvarObservacaoSupabase;
+    window.excluirFrequenciaSupabase = excluirFrequenciaSupabase;
+    window.listarJustificativasSupabase = listarJustificativasSupabase;
+    window.excluirJustificativaSupabase = excluirJustificativaSupabase;
 }
