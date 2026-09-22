@@ -999,18 +999,38 @@ function calcularHoras() {
     }
 }
 
-function limparFrequencia() {
-    if (confirm('Limpar todos os horários?')) {
-        const campos = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
-        campos.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) campo.value = '';
-            
-            // Limpa também os campos mobile (se existirem)
-            const campoMobile = document.getElementById(id + 'Mobile');
-            if (campoMobile) campoMobile.value = '';
-        });
-        calcularHoras();
+async function limparFrequencia() {
+    if (!confirm('Apagar os horários deste dia? Isso também remove da planilha.')) {
+        return;
+    }
+
+    const campos = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
+    campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = '';
+
+        // Limpa também os campos mobile (se existirem)
+        const campoMobile = document.getElementById(id + 'Mobile');
+        if (campoMobile) campoMobile.value = '';
+    });
+    calcularHoras();
+
+    const mes = document.getElementById('selectMes')?.value;
+    const dia = document.getElementById('selectDia')?.value;
+    if (!mes || !dia) return;
+
+    const resultado = await excluirFrequenciaAPI({ mes: mes, dia: parseInt(dia) });
+
+    if (resultado.success) {
+        if (typeof salvarStatusDia === 'function') {
+            salvarStatusDia(mes, parseInt(dia), { entradaManha: '', saidaManha: '', entradaTarde: '', saidaTarde: '' });
+        }
+        if (typeof atualizarIndicadoresDias === 'function') {
+            atualizarIndicadoresDias();
+        }
+        mostrarNotificacao('Horários apagados.', 'success');
+    } else {
+        mostrarNotificacao(`Erro ao apagar: ${resultado.error}`, 'error');
     }
 }
 
