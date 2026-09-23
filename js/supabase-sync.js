@@ -80,11 +80,17 @@ async function salvarFrequenciaSupabase(dados) {
         const indiceMes = CONFIG.MESES.indexOf(dados.mes);
         const dataISO = `${CONFIG.ANO_ATUAL}-${String(indiceMes + 1).padStart(2, '0')}-${String(dados.dia).padStart(2, '0')}`;
 
-        const corpo = { usuario_id: usuarioId, data: dataISO };
-        if (dados.entradaManha) corpo.entrada_manha = horaParaSupabase_(formatarHora(dados.entradaManha));
-        if (dados.saidaManha) corpo.saida_manha = horaParaSupabase_(formatarHora(dados.saidaManha));
-        if (dados.entradaTarde) corpo.entrada_tarde = horaParaSupabase_(formatarHora(dados.entradaTarde));
-        if (dados.saidaTarde) corpo.saida_tarde = horaParaSupabase_(formatarHora(dados.saidaTarde));
+        const corpo = {
+            usuario_id: usuarioId,
+            data: dataISO,
+            // Sempre manda os quatro, com null pra vazio — se só omitíssemos
+            // os vazios, apagar um horário no formulário e salvar não
+            // limparia o valor antigo no Supabase (nem na planilha).
+            entrada_manha: horaParaSupabase_(formatarHora(dados.entradaManha)) || null,
+            saida_manha: horaParaSupabase_(formatarHora(dados.saidaManha)) || null,
+            entrada_tarde: horaParaSupabase_(formatarHora(dados.entradaTarde)) || null,
+            saida_tarde: horaParaSupabase_(formatarHora(dados.saidaTarde)) || null
+        };
 
         await chamarSupabase_('registros_frequencia', corpo, { onConflict: 'usuario_id,data' });
 
