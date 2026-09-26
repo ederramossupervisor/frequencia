@@ -287,81 +287,36 @@ async function definirEmailUsuarioAPI(email) {
 }
 
 /**
- * Cadastra um feriado na aba "Feriados" da planilha central — uma lista
- * só, vale pra todo mundo. Só quem é admin chega a chamar isso (o
- * formulário em Configurações só aparece pra admin), mas confere de novo
- * aqui como segunda trava. GET de propósito, igual as outras leituras —
- * diferente da versão anterior (POST em no-cors, sem confirmação real),
- * agora dá pra saber de verdade se salvou.
+ * Cadastra um feriado — lista global, vale pra todo mundo. Só quem é
+ * admin chega a chamar isso (o formulário em Configurações só aparece
+ * pra admin), mas confere de novo aqui como segunda trava. Grava direto
+ * no Supabase (tabela "feriados").
  */
 async function adicionarFeriadoUsuarioAPI(dataISO, descricao) {
     if (typeof usuarioEhAdmin_ === 'function' && !usuarioEhAdmin_()) {
         return { success: false, error: 'Apenas o administrador pode cadastrar feriados' };
     }
-    try {
-        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-            return { success: false, error: 'URL do Apps Script não configurada' };
-        }
-        const params = new URLSearchParams({
-            action: 'adicionarFeriado',
-            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
-            data: dataISO,
-            descricao: descricao || 'Feriado'
-        });
-        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
-        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
-        return await resposta.json();
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+    return adicionarFeriadoSupabase(dataISO, descricao);
 }
 
 /**
- * Remove um feriado (pela data) da aba "Feriados" da planilha central.
- * Mesma trava e mesmo motivo de ser GET de adicionarFeriadoUsuarioAPI.
+ * Remove um feriado (pela data). Mesma trava de adicionarFeriadoUsuarioAPI.
  */
 async function removerFeriadoUsuarioAPI(dataISO) {
     if (typeof usuarioEhAdmin_ === 'function' && !usuarioEhAdmin_()) {
         return { success: false, error: 'Apenas o administrador pode remover feriados' };
     }
-    try {
-        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-            return { success: false, error: 'URL do Apps Script não configurada' };
-        }
-        const params = new URLSearchParams({
-            action: 'removerFeriado',
-            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS,
-            data: dataISO
-        });
-        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
-        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
-        return await resposta.json();
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+    return removerFeriadoSupabase(dataISO);
 }
 
 /**
- * Busca a lista de feriados "oficial" — direto da aba "Feriados" da
- * planilha central (uma lista só, não mais por pessoa). É a fonte única
- * que selecionarUsuario e sincronizarUsuarioAtual usam. Leitura aberta,
- * sem checar admin — todo mundo VÊ a lista, só não pode editar.
+ * Busca a lista de feriados "oficial" — direto do Supabase (tabela
+ * "feriados", uma lista só, não mais por pessoa). É a fonte única que
+ * selecionarUsuario e sincronizarUsuarioAtual usam. Leitura aberta, sem
+ * checar admin — todo mundo VÊ a lista, só não pode editar.
  */
 async function obterFeriadosGlobaisAPI() {
-    try {
-        if (!CONFIG.APP_SCRIPT_URL || CONFIG.APP_SCRIPT_URL.includes('YOUR_SCRIPT_ID')) {
-            return { success: false, error: 'URL do Apps Script não configurada' };
-        }
-        const params = new URLSearchParams({
-            action: 'listarFeriados',
-            sheetIdUsuarios: CONFIG.SHEET_ID_USUARIOS
-        });
-        const resposta = await fetch(`${CONFIG.APP_SCRIPT_URL}?${params.toString()}`, { method: 'GET' });
-        if (!resposta.ok) throw new Error(`Resposta HTTP ${resposta.status}`);
-        return await resposta.json();
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+    return listarFeriadosSupabase();
 }
 
 /**

@@ -310,6 +310,84 @@ async function excluirJustificativaSupabase(id) {
     }
 }
 
+/**
+ * Feriados: lista global, sem usuario_id — vale pra todo mundo. Leitura
+ * aberta (não checa admin aqui; a trava de quem PODE editar já é feita
+ * em usuariosEhAdmin_/usuarioEhAdmin_ antes de chamar adicionar/remover).
+ */
+async function listarFeriadosSupabase() {
+    try {
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/feriados?select=data,descricao&order=data.asc`;
+        const resposta = await fetch(url, {
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+            }
+        });
+
+        if (!resposta.ok) throw new Error(`Supabase ${resposta.status}`);
+
+        const linhas = await resposta.json();
+        return { success: true, feriados: linhas };
+
+    } catch (error) {
+        console.error('Erro ao listar feriados no Supabase:', error);
+        return { success: false, error: error.message, feriados: [] };
+    }
+}
+
+/**
+ * Cadastra (ou atualiza a descrição de) um feriado. "data" é chave
+ * primária na tabela, então upsert por on_conflict=data não duplica se
+ * a mesma data já existir.
+ */
+async function adicionarFeriadoSupabase(dataISO, descricao) {
+    try {
+        if (!dataISO) throw new Error('Data é obrigatória');
+
+        await chamarSupabase_('feriados', {
+            data: dataISO,
+            descricao: descricao || 'Feriado'
+        }, { onConflict: 'data' });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('Erro ao adicionar feriado no Supabase:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Remove um feriado pela data.
+ */
+async function removerFeriadoSupabase(dataISO) {
+    try {
+        if (!dataISO) throw new Error('Data é obrigatória');
+
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/feriados?data=eq.${dataISO}`;
+        const resposta = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                Prefer: 'return=minimal'
+            }
+        });
+
+        if (!resposta.ok) {
+            const texto = await resposta.text().catch(() => '');
+            throw new Error(`Supabase ${resposta.status}: ${texto}`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('Erro ao remover feriado no Supabase:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.resolverUsuarioIdSupabase = resolverUsuarioIdSupabase;
     window.obterUsuarioIdSupabaseAtual = obterUsuarioIdSupabaseAtual;
@@ -319,4 +397,7 @@ if (typeof window !== 'undefined') {
     window.excluirFrequenciaSupabase = excluirFrequenciaSupabase;
     window.listarJustificativasSupabase = listarJustificativasSupabase;
     window.excluirJustificativaSupabase = excluirJustificativaSupabase;
+    window.listarFeriadosSupabase = listarFeriadosSupabase;
+    window.adicionarFeriadoSupabase = adicionarFeriadoSupabase;
+    window.removerFeriadoSupabase = removerFeriadoSupabase;
 }
