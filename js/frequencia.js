@@ -1145,8 +1145,8 @@ async function salvarFrequencia() {
             btn.disabled = true;
         }
         
-        console.log('📤 Enviando para Apps Script...');
-        const resultado = await enviarParaAppsScript(dadosEnvio);
+        console.log('📤 Enviando para o Supabase...');
+        const resultado = await salvarFrequenciaAPI(dados);
         
         console.log('📥 Resultado:', resultado);
         
@@ -1155,16 +1155,17 @@ async function salvarFrequencia() {
             btn.disabled = false;
         }
         
+        // salvarFrequenciaAPI (Supabase) já mostra sua própria notificação
+        // de sucesso/erro — não repete aqui pra não duplicar o toast.
         if (resultado && resultado.success) {
-            console.log('✅ Sucesso! Mostrando notificação...');
-            mostrarNotificacao('Frequência salva com sucesso!', 'success');
+            console.log('✅ Sucesso!');
             // Confirma o indicador com os dados reais da planilha (dá um
-            // tempinho pro Apps Script terminar de gravar antes de reler).
+            // tempinho pro webhook Supabase→Apps Script terminar de gravar
+            // antes de reler).
             setTimeout(() => sincronizarStatusMesComPlanilha(mes), 2500);
         } else {
             const erroMsg = resultado?.error || 'Erro desconhecido';
             console.log('❌ Erro da API:', erroMsg);
-            mostrarNotificacao(`Erro: ${erroMsg}`, 'error');
         }
         
         return resultado;

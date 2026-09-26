@@ -62,6 +62,20 @@ function horaParaSupabase_(horaHHMM) {
     return horaHHMM.length === 5 ? `${horaHHMM}:00` : horaHHMM;
 }
 
+// Converte "HH:MM" (duração, ex: "08:00" ou "01:30") para número decimal
+// de horas (ex: 8 ou 1.5) — formato que a coluna "horas_liquidas"
+// (numeric) do Postgres espera. Sem isso, mandar a string "08:00" pra
+// essa coluna dá erro 22P02 (invalid input syntax for type numeric).
+function horasParaDecimal_(horaHHMM) {
+    if (!horaHHMM) return null;
+    const partes = String(horaHHMM).split(':');
+    if (partes.length !== 2) return null;
+    const horas = parseInt(partes[0], 10);
+    const minutos = parseInt(partes[1], 10);
+    if (isNaN(horas) || isNaN(minutos)) return null;
+    return Math.round((horas + minutos / 60) * 100) / 100;
+}
+
 /**
  * Substitui salvarFrequenciaAPI: grava direto no Supabase em vez de
  * chamar o Apps Script. A planilha é atualizada pelo webhook.
@@ -127,7 +141,7 @@ async function salvarJustificativaSupabase(dados) {
             data_fim: dados.data,
             hora_inicio: horaParaSupabase_(formatarHora(dados.horaInicio) || '08:00'),
             hora_fim: horaParaSupabase_(formatarHora(dados.horaFim) || '17:00'),
-            horas_liquidas: dados.horasLiquidas || '08:00',
+            horas_liquidas: horasParaDecimal_(dados.horasLiquidas) ?? 8,
             observacao: dados.observacao || null
         };
 
