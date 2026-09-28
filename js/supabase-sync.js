@@ -241,44 +241,6 @@ async function excluirFrequenciaSupabase(dados) {
 }
 
 /**
- * Busca no Supabase o registro de UM dia (rápido, ~poucas centenas de ms —
- * bem mais leve que ler o mês inteiro da planilha via Apps Script).
- * Devolve {success: true, registro: {...} | null}. registro = null significa
- * "consultei e não há nada gravado nesse dia" (diferente de falha).
- */
-async function buscarRegistroFrequenciaSupabase(dataISO) {
-    try {
-        const usuarioId = obterUsuarioIdSupabaseAtual();
-        if (!usuarioId) {
-            return { success: false, error: 'Usuário não vinculado ao Supabase' };
-        }
-
-        const url = `${CONFIG.SUPABASE_URL}/rest/v1/registros_frequencia?usuario_id=eq.${usuarioId}` +
-            `&data=eq.${dataISO}&select=entrada_manha,saida_manha,entrada_tarde,saida_tarde`;
-
-        const resposta = await fetch(url, {
-            headers: {
-                apikey: CONFIG.SUPABASE_ANON_KEY,
-                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
-            }
-        });
-
-        if (!resposta.ok) throw new Error(`Supabase ${resposta.status}`);
-
-        const linhas = await resposta.json();
-        return { success: true, registro: linhas.length ? linhas[0] : null };
-
-    } catch (error) {
-        console.warn('Não foi possível ler o registro do dia no Supabase:', error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-if (typeof window !== 'undefined') {
-    window.buscarRegistroFrequenciaSupabase = buscarRegistroFrequenciaSupabase;
-}
-
-/**
  * Lista as justificativas do usuário atual num mês (ano corrente),
  * pra pessoa escolher qual excluir. Cada uma vem com o id (uuid) que
  * excluirJustificativaSupabase espera.
