@@ -3,6 +3,16 @@ let frequenciaState = {
     mesAtual: '',
     diaAtual: 1,
     diasDoMes: {},   // cache: {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde, totalGeral, ...}} vindo da planilha
+    // Horários do mês vindos do SUPABASE (ou do cache local, enquanto a rede responde) —
+    // fonte principal dos 4 campos de hora. Formato: {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde}}
+    horariosMes: {},
+    horariosMesMes: '',            // mês a que horariosMes se refere
+    horariosConfirmados: false,    // true depois que o Supabase respondeu para o mês atual
+    promessaHorarios: null,        // busca em andamento (pra reaproveitar/aguardar)
+    promessaHorariosMes: '',
+    versaoHorarios: 0,             // incrementa a cada gravação local (descarta buscas mais antigas que ela)
+    ultimaConfirmacaoHorarios: 0,
+    camposEditados: false,         // true se a pessoa mexeu nos campos desde o último carregamento
     observacoesPorDia: { mes: '', dias: {} }   // cache: observações da planilha de Acompanhamento já cruzadas por dia (ver carregarObservacoesDoMes), usadas no seletor de dia
 };
 
@@ -453,14 +463,19 @@ function camposEstaoVazios() {
 }
 
 /**
- * Preenche os campos de horário do dia selecionado com os dados reais da
- * planilha (se já tiverem sido buscados) e atualiza o "Resumo do Dia"
- * usando o Total Geral que a própria planilha já calcula — em vez de
- * recalcular aqui, evitando qualquer divergência com o que está lá.
- * Se o dia não tiver dados (ainda não preenchido), limpa os campos.
+ * Preenche os campos de horário do dia selecionado. Origem, em ordem:
+ *   1) Supabase / cache local (frequenciaState.horariosMes) — instantâneo;
+ *   2) planilha (frequenciaState.diasDoMes, via Apps Script) — só se o dia
+ *      não estiver no Supabase (ex: dados antigos anteriores à migração).
+ * O "Resumo do Dia" é calculado localmente; se a planilha tiver o mesmo dia
+ * com os mesmos horários, usa o Total Geral dela (fonte da verdade).
+ * Se o dia não tiver dados em lugar nenhum, limpa os campos.
  */
 function carregarDadosDoDia(dia) {
-    const dadosDia = frequenciaState.diasDoMes[dia];
+    const doSupabase = (frequenciaState.horariosMesMes === frequenciaState.mesAtual)
+        ? frequenciaState.horariosMes[dia]
+        : null;
+    const dadosDia = doSupabase || frequenciaState.diasDoMes[dia];
 
     const definirValor = (id, valor) => {
         const campo = document.getElementById(id);
@@ -480,19 +495,165 @@ function carregarDadosDoDia(dia) {
     definirValor('entradaTarde', dadosDia?.entradaTarde);
     definirValor('saidaTarde', dadosDia?.saidaTarde);
 
+    // Valores acabaram de ser carregados (não digitados) — nada "sujo" ainda
+    frequenciaState.camposEditados = false;
+
+    calcularHoras();
+    aplicarTotalPlanilhaSeConferir_(dia);
+}
+
+/**
+ * Se a planilha tem esse dia com exatamente os mesmos 4 horários que estão
+ * nos campos, usa o Total Geral calculado por ela no lugar do cálculo local.
+ */
+function aplicarTotalPlanilhaSeConferir_(dia) {
+    const dadosPlanilha = frequenciaState.diasDoMes[dia];
+    if (!dadosPlanilha || !dadosPlanilha.totalGeral) return;
+
+    const ids = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
+    const iguais = ids.every(id =>
+        formatarHora(String(dadosPlanilha[id] || '')) === (obterValorCampoHora(id) || '')
+    );
+
     const horasTotalEl = document.getElementById('horasTotal');
-    if (dadosDia && dadosDia.totalGeral) {
-        // Usa o total já calculado pela planilha (fonte da verdade)
-        if (horasTotalEl) horasTotalEl.textContent = dadosDia.totalGeral;
-    } else {
-        // Sem dado da planilha ainda (ou dia vazio) — calcula localmente
-        calcularHoras();
-    }
+    if (iguais && horasTotalEl) horasTotalEl.textContent = dadosPlanilha.totalGeral;
+}
+
+function marcarCamposEditados_() {
+    frequenciaState.camposEditados = true;
 }
 
 if (typeof window !== 'undefined') {
     window.carregarDadosDoDia = carregarDadosDoDia;
 }
+
+/**
+ * Prepara os horários de um mês: mostra NA HORA o que este aparelho já tem
+ * em cache local e dispara a busca no Supabase pra confirmar/atualizar.
+ */
+function prepararHorariosDoMes_(mes) {
+    frequenciaState.horariosMes = (typeof lerCacheHorariosMes === 'function' ? lerCacheHorariosMes(mes) : null) || {};
+    frequenciaState.horariosMesMes = mes;
+    frequenciaState.horariosConfirmados = false;
+    // Dados da planilha que estavam na memória são de outro mês (ou serão
+    // relidos logo em seguida) — não servem de fallback pro mês novo.
+    frequenciaState.diasDoMes = {};
+
+    carregarDadosDoDia(frequenciaState.diaAtual);
+    carregarHorariosDoMes(mes);
+}
+
+/**
+ * Busca os horários do mês no Supabase (1 requisição) e aplica na tela:
+ *  - campos intocados: são atualizados se o dia mudou em relação ao cache;
+ *  - campos já digitados: na primeira confirmação, só os que ainda estão
+ *    VAZIOS são completados (nunca sobrescreve o que a pessoa digitou).
+ * Devolve true se aplicou com sucesso.
+ */
+async function carregarHorariosDoMes(mes) {
+    if (typeof buscarFrequenciaMesSupabase !== 'function') return false;
+    if (typeof obterUsuarioIdSupabaseAtual !== 'function' || !obterUsuarioIdSupabaseAtual()) return false;
+
+    // Já existe uma busca desse mês em andamento — reaproveita
+    if (frequenciaState.promessaHorarios && frequenciaState.promessaHorariosMes === mes) {
+        return frequenciaState.promessaHorarios;
+    }
+
+    const versaoInicial = frequenciaState.versaoHorarios;
+
+    const promessa = (async () => {
+        const resultado = await buscarFrequenciaMesSupabase(mes);
+        if (!resultado.success) return false;
+
+        // Trocou de mês enquanto a busca corria
+        if (mes !== frequenciaState.mesAtual) return false;
+        // Houve gravação local enquanto a busca corria: o cache local é mais
+        // novo que essa resposta, então ela é descartada
+        if (versaoInicial !== frequenciaState.versaoHorarios) return false;
+
+        const dia = frequenciaState.diaAtual;
+        const primeiraConfirmacao = !frequenciaState.horariosConfirmados;
+        const antes = JSON.stringify(frequenciaState.horariosMes[dia] || null);
+
+        frequenciaState.horariosMes = resultado.dias;
+        frequenciaState.horariosMesMes = mes;
+        frequenciaState.horariosConfirmados = true;
+        frequenciaState.ultimaConfirmacaoHorarios = Date.now();
+        if (typeof gravarCacheHorariosMes_ === 'function') gravarCacheHorariosMes_(mes, resultado.dias);
+
+        const depois = JSON.stringify(resultado.dias[dia] || null);
+
+        if (!frequenciaState.camposEditados) {
+            if (antes !== depois) carregarDadosDoDia(dia);
+        } else if (primeiraConfirmacao) {
+            preencherCamposVaziosDoDia_(dia);
+        }
+        return true;
+    })();
+
+    frequenciaState.promessaHorarios = promessa;
+    frequenciaState.promessaHorariosMes = mes;
+
+    try {
+        return await promessa;
+    } finally {
+        if (frequenciaState.promessaHorarios === promessa) {
+            frequenciaState.promessaHorarios = null;
+            frequenciaState.promessaHorariosMes = '';
+        }
+    }
+}
+
+/**
+ * Completa só os campos VAZIOS do dia com o que está no Supabase (usado
+ * quando a pessoa já começou a digitar antes da resposta chegar).
+ */
+function preencherCamposVaziosDoDia_(dia) {
+    const horarios = frequenciaState.horariosMes[dia];
+    if (!horarios) return;
+
+    let mudou = false;
+    ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'].forEach(id => {
+        if (!horarios[id] || obterValorCampoHora(id)) return;
+        const campo = document.getElementById(id);
+        if (campo) campo.value = horarios[id];
+        const campoMobile = document.getElementById(id + 'Mobile');
+        if (campoMobile) campoMobile.value = horarios[id];
+        mudou = true;
+    });
+
+    if (mudou) calcularHoras();
+}
+
+/**
+ * Garante que os horários do mês atual foram CONFIRMADOS no Supabase antes
+ * de uma ação que decide algo com base neles (ex: "Bati o Ponto").
+ * Espera a busca em andamento (ou dispara uma) por até "timeoutMs".
+ */
+async function garantirHorariosConfirmados_(timeoutMs) {
+    if (frequenciaState.horariosConfirmados && frequenciaState.horariosMesMes === frequenciaState.mesAtual) {
+        return true;
+    }
+    if (typeof obterUsuarioIdSupabaseAtual !== 'function' || !obterUsuarioIdSupabaseAtual()) return false;
+
+    const limite = new Promise(resolve => setTimeout(() => resolve(false), timeoutMs || 6000));
+    const resultado = await Promise.race([carregarHorariosDoMes(frequenciaState.mesAtual), limite]);
+    return resultado === true;
+}
+
+/**
+ * Chamada depois de gravar/apagar no Supabase: o cache local já foi
+ * atualizado por supabase-sync.js; aqui só espelha na memória e invalida
+ * qualquer busca que estivesse em andamento (seria mais antiga que a gravação).
+ */
+function sincronizarHorariosLocais_(mes) {
+    frequenciaState.versaoHorarios++;
+    if (mes === frequenciaState.mesAtual && typeof lerCacheHorariosMes === 'function') {
+        frequenciaState.horariosMes = lerCacheHorariosMes(mes) || {};
+        frequenciaState.horariosMesMes = mes;
+    }
+}
+
 
 /**
  * Busca na planilha (via Apps Script) o status real dos dias do mês e
@@ -528,6 +689,10 @@ async function sincronizarStatusMesComPlanilha(mes) {
             frequenciaState.diasDoMes = resultado.dias || {};
             if (camposEstaoVazios()) {
                 carregarDadosDoDia(frequenciaState.diaAtual);
+            } else {
+                // Campos já preenchidos (Supabase/cache): só troca o total pelo
+                // da planilha se os horários dela forem os mesmos
+                aplicarTotalPlanilhaSeConferir_(frequenciaState.diaAtual);
             }
 
             // Calcula e escreve os dias úteis do mês em C9, automaticamente
@@ -598,6 +763,9 @@ function initFrequencia() {
     
     carregarInterfaceFrequencia();
     configurarEventListenersFrequencia();
+    // Horários do dia: cache local na hora + Supabase logo em seguida
+    prepararHorariosDoMes_(frequenciaState.mesAtual);
+    // Resumo/saldo do mês e demais dados da planilha: em segundo plano
     sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
     
     console.log('Aba Frequência inicializada');
@@ -853,6 +1021,7 @@ function configurarEventListenersFrequencia() {
             atualizarIndicadoresDias();
             exibirCarregandoSaldoMes();
             resetarProgressoMes();
+            prepararHorariosDoMes_(frequenciaState.mesAtual);
             sincronizarStatusMesComPlanilha(frequenciaState.mesAtual);
         });
     }
@@ -894,6 +1063,19 @@ function configurarEventListenersFrequencia() {
         });
         frequenciaState.listenerFechamentoSeletorDiaAtivo = true;
     }
+
+    // Ao voltar pro app (PWA em segundo plano -> primeiro plano), reconfere os
+    // horários no Supabase — pega batidas feitas em outro aparelho. Só atualiza
+    // a tela se a pessoa não estiver no meio de uma digitação.
+    if (!frequenciaState.listenerVisibilidadeHorariosAtivo) {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!document.getElementById('selectMes')) return;
+            if (Date.now() - frequenciaState.ultimaConfirmacaoHorarios < 10000) return;
+            carregarHorariosDoMes(frequenciaState.mesAtual);
+        });
+        frequenciaState.listenerVisibilidadeHorariosAtivo = true;
+    }
     
     // Campos de hora
     const camposHora = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
@@ -901,10 +1083,13 @@ function configurarEventListenersFrequencia() {
         const campo = document.getElementById(id);
         if (campo) {
             campo.addEventListener('change', calcularHoras);
+            campo.addEventListener('input', marcarCamposEditados_);
+            campo.addEventListener('change', marcarCamposEditados_);
             
             // Adiciona também para os campos mobile (se existirem)
             const campoMobile = document.getElementById(id + 'Mobile');
             if (campoMobile) {
+                campoMobile.addEventListener('input', marcarCamposEditados_);
                 campoMobile.addEventListener('input', function() {
                     // Sincroniza com campo original
                     campo.value = this.value;
@@ -1022,6 +1207,9 @@ async function limparFrequencia() {
     const resultado = await excluirFrequenciaAPI({ mes: mes, dia: parseInt(dia) });
 
     if (resultado.success) {
+        sincronizarHorariosLocais_(mes);
+        delete frequenciaState.diasDoMes[parseInt(dia)];
+        frequenciaState.camposEditados = false;
         if (typeof salvarStatusDia === 'function') {
             salvarStatusDia(mes, parseInt(dia), { entradaManha: '', saidaManha: '', entradaTarde: '', saidaTarde: '' });
         }
@@ -1042,6 +1230,10 @@ async function limparFrequencia() {
  *
  * Sempre aponta pro dia de hoje, mesmo que a pessoa esteja com outro dia
  * selecionado na tela no momento (evita registrar o ponto no dia errado).
+ *
+ * Antes de escolher o campo, confere no Supabase o que já foi registrado
+ * hoje (instantâneo quando o app já carregou) e grava SÓ o horário novo —
+ * horários já registrados nunca são apagados nem reescritos.
  */
 async function baterPontoAgora() {
     const diaHoje = obterDiaAtual();
@@ -1059,6 +1251,19 @@ async function baterPontoAgora() {
         carregarDadosDoDia(diaHoje);
     }
 
+    // Confere o que já está registrado hoje ANTES de escolher o próximo campo
+    if (!frequenciaState.horariosConfirmados) {
+        mostrarNotificacao('Conferindo os horários de hoje...', 'info', 1500);
+    }
+    const confirmado = await garantirHorariosConfirmados_(6000);
+    if (!confirmado) {
+        const seguir = confirm(
+            'Não consegui conferir os horários já registrados hoje (sem conexão ou conexão lenta).\n\n' +
+            'Registrar mesmo assim no próximo campo livre?'
+        );
+        if (!seguir) return;
+    }
+
     const camposEmOrdem = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
     const proximoCampo = camposEmOrdem.find(id => !obterValorCampoHora(id));
 
@@ -1068,14 +1273,27 @@ async function baterPontoAgora() {
     }
 
     preencherHoraAtual(proximoCampo);
-    await salvarFrequencia();
+
+    // Grava o horário novo + qualquer campo que a pessoa tenha digitado e que
+    // ainda não esteja no Supabase. Campos vazios ficam de fora (não viram null).
+    const jaSalvos = frequenciaState.horariosMes[diaHoje] || {};
+    const paraGravar = camposEmOrdem.filter(id => {
+        const valor = obterValorCampoHora(id);
+        if (!valor) return false;
+        return id === proximoCampo || valor !== (jaSalvos[id] || '');
+    });
+
+    await salvarFrequencia({ somenteCampos: paraGravar });
 }
 
 if (typeof window !== 'undefined') {
     window.baterPontoAgora = baterPontoAgora;
 }
 
-async function salvarFrequencia() {
+async function salvarFrequencia(opcoes) {
+    // O botão "Salvar" chama isto com o evento de clique; só vale quando vier
+    // { somenteCampos: [...] } (usado pelo "Bati o Ponto").
+    const somenteCampos = (opcoes && Array.isArray(opcoes.somenteCampos)) ? opcoes.somenteCampos : null;
     try {
         console.log('🔄 Iniciando salvamento de frequência...');
         
@@ -1096,6 +1314,7 @@ async function salvarFrequencia() {
             entradaTarde: document.getElementById('entradaTarde')?.value || '',
             saidaTarde: document.getElementById('saidaTarde')?.value || ''
         };
+        if (somenteCampos) dados.somenteCampos = somenteCampos;
         
         console.log('📝 Dados coletados:', dados);
         
@@ -1162,6 +1381,8 @@ async function salvarFrequencia() {
             // Confirma o indicador com os dados reais da planilha (dá um
             // tempinho pro webhook Supabase→Apps Script terminar de gravar
             // antes de reler).
+            sincronizarHorariosLocais_(mes);
+            frequenciaState.camposEditados = false;
             setTimeout(() => sincronizarStatusMesComPlanilha(mes), 2500);
         } else {
             const erroMsg = resultado?.error || 'Erro desconhecido';
