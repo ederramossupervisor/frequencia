@@ -1043,12 +1043,7 @@ async function limparFrequencia() {
  * Sempre aponta pro dia de hoje, mesmo que a pessoa esteja com outro dia
  * selecionado na tela no momento (evita registrar o ponto no dia errado).
  */
-let baterPontoEmAndamento = false;
-
 async function baterPontoAgora() {
-    // Trava contra toque duplo enquanto um registro ainda está sendo feito
-    if (baterPontoEmAndamento) return;
-
     const diaHoje = obterDiaAtual();
     const mesHoje = obterMesAtual();
 
@@ -1057,66 +1052,23 @@ async function baterPontoAgora() {
         return;
     }
 
-    baterPontoEmAndamento = true;
-    const btn = document.getElementById('btnBaterPonto');
-    const textoOriginalBtn = btn?.innerHTML;
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conferindo horários...';
+    const selectDia = document.getElementById('selectDia');
+    if (selectDia && parseInt(selectDia.value, 10) !== diaHoje) {
+        frequenciaState.diaAtual = diaHoje;
+        selecionarDia(diaHoje, { dispararChange: false });
+        carregarDadosDoDia(diaHoje);
     }
 
-    try {
-        const selectDia = document.getElementById('selectDia');
-        if (selectDia && parseInt(selectDia.value, 10) !== diaHoje) {
-            frequenciaState.diaAtual = diaHoje;
-            selecionarDia(diaHoje, { dispararChange: false });
-        }
+    const camposEmOrdem = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
+    const proximoCampo = camposEmOrdem.find(id => !obterValorCampoHora(id));
 
-        // Os campos da tela podem ainda estar vazios só porque a leitura
-        // lenta da planilha (Apps Script) não terminou. Por isso, antes de
-        // decidir qual é o PRÓXIMO campo, lê o que já está gravado hoje no
-        // Supabase (rápido) e usa isso como verdade. Se a leitura falhar,
-        // NÃO chuta — aborta, pra nunca gravar no campo errado nem apagar
-        // horário existente.
-        const indiceMes = CONFIG.MESES.indexOf(mesHoje);
-        const dataISO = `${CONFIG.ANO_ATUAL}-${String(indiceMes + 1).padStart(2, '0')}-${String(diaHoje).padStart(2, '0')}`;
-        const leitura = await buscarRegistroFrequenciaSupabase(dataISO);
-
-        if (!leitura.success) {
-            mostrarNotificacao('Não consegui conferir os horários de hoje. Verifique a conexão e tente de novo.', 'error', 5000);
-            return;
-        }
-
-        const reg = leitura.registro || {};
-        const definir = (id, valor) => {
-            const normalizado = (typeof formatarHora === 'function') ? formatarHora((valor || '').substring(0, 5)) : (valor || '').substring(0, 5);
-            const campo = document.getElementById(id);
-            if (campo) campo.value = normalizado;
-            const campoMobile = document.getElementById(id + 'Mobile');
-            if (campoMobile) campoMobile.value = normalizado;
-        };
-        definir('entradaManha', reg.entrada_manha);
-        definir('saidaManha', reg.saida_manha);
-        definir('entradaTarde', reg.entrada_tarde);
-        definir('saidaTarde', reg.saida_tarde);
-
-        const camposEmOrdem = ['entradaManha', 'saidaManha', 'entradaTarde', 'saidaTarde'];
-        const proximoCampo = camposEmOrdem.find(id => !obterValorCampoHora(id));
-
-        if (!proximoCampo) {
-            mostrarNotificacao('Os 4 horários de hoje já estão preenchidos.', 'info', 3000);
-            return;
-        }
-
-        preencherHoraAtual(proximoCampo);
-        await salvarFrequencia();
-    } finally {
-        baterPontoEmAndamento = false;
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = textoOriginalBtn;
-        }
+    if (!proximoCampo) {
+        mostrarNotificacao('Os 4 horários de hoje já estão preenchidos.', 'info', 3000);
+        return;
     }
+
+    preencherHoraAtual(proximoCampo);
+    await salvarFrequencia();
 }
 
 if (typeof window !== 'undefined') {
