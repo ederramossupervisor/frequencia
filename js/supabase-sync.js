@@ -76,6 +76,143 @@ function horasParaDecimal_(horaHHMM) {
     return Math.round((horas + minutos / 60) * 100) / 100;
 }
 
+// ============================================
+// LEITURA DOS HORÁRIOS (Supabase) + CACHE LOCAL
+// ============================================
+// Os horários do dia (entrada/saída manhã e tarde) vêm direto do
+// Supabase — bem mais rápido que passar pelo Apps Script/planilha — e
+// ficam num cache local (por pessoa/ano/mês) pra já aparecerem nos campos
+// no instante em que o app abre, antes mesmo da rede responder.
+
+const HORARIOS_CAMPOS_ = [
+    ['entradaManha', 'entrada_manha'],
+    ['saidaManha', 'saida_manha'],
+    ['entradaTarde', 'entrada_tarde'],
+    ['saidaTarde', 'saida_tarde']
+];
+
+// "08:15:00" (coluna time do Postgres) -> "08:15" (o que os campos usam)
+function horaDoSupabase_(valor) {
+    return valor ? String(valor).slice(0, 5) : '';
+}
+
+function chaveCacheHorarios_(mes) {
+    return `frequencia_horarios_${obterUsuarioIdSupabaseAtual()}_${CONFIG.ANO_ATUAL}_${mes}`;
+}
+
+/**
+ * Lê do localStorage o mapa {dia: {entradaManha, saidaManha, entradaTarde,
+ * saidaTarde}} do mês, ou null se este aparelho ainda não tem cache.
+ */
+function lerCacheHorariosMes(mes) {
+    try {
+        if (!obterUsuarioIdSupabaseAtual()) return null;
+        const bruto = localStorage.getItem(chaveCacheHorarios_(mes));
+        return bruto ? JSON.parse(bruto) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function gravarCacheHorariosMes_(mes, mapa) {
+    try {
+        if (!obterUsuarioIdSupabaseAtual()) return;
+        localStorage.setItem(chaveCacheHorarios_(mes), JSON.stringify(mapa || {}));
+    } catch (e) {
+        console.warn('Não foi possível gravar o cache de horários:', e);
+    }
+}
+
+/**
+ * Atualiza UM dia no cache (write-through, logo depois de gravar no
+ * Supabase). Com "mesclar", só sobrescreve os campos informados e mantém
+ * os demais do dia; sem "mesclar", o dia inteiro é substituído.
+ */
+function atualizarCacheHorariosDia_(mes, dia, horarios, mesclar) {
+    const mapa = lerCacheHorariosMes(mes) || {};
+    const base = mesclar ? { ...(mapa[dia] || {}) } : {};
+    Object.assign(base, horarios);
+
+    const temAlgum = HORARIOS_CAMPOS_.some(([chave]) => !!base[chave]);
+    if (temAlgum) {
+        mapa[dia] = base;
+    } else {
+        delete mapa[dia];
+    }
+    gravarCacheHorariosMes_(mes, mapa);
+}
+
+/**
+ * Busca no Supabase todos os registros de frequência do mês da pessoa
+ * selecionada (uma única requisição) e devolve {success, dias}, onde
+ * dias = {dia: {entradaManha, saidaManha, entradaTarde, saidaTarde}}.
+ * Dias sem registro simplesmente não aparecem no mapa.
+ */
+async function buscarFrequenciaMesSupabase(mes, opcoes) {
+    const timeoutMs = (opcoes && opcoes.timeoutMs) || 8000;
+    const controlador = new AbortController();
+    const timer = setTimeout(() => controlador.abort(), timeoutMs);
+
+    try {
+        const usuarioId = obterUsuarioIdSupabaseAtual();
+        if (!usuarioId) {
+            return { success: false, error: 'Usuário não vinculado ao Supabase' };
+        }
+
+        const indiceMes = CONFIG.MESES.indexOf(mes);
+        if (indiceMes === -1) {
+            return { success: false, error: 'Mês inválido' };
+        }
+
+        const ano = CONFIG.ANO_ATUAL;
+        const mm = String(indiceMes + 1).padStart(2, '0');
+        const ultimoDia = new Date(ano, indiceMes + 1, 0).getDate();
+        const inicioMes = `${ano}-${mm}-01`;
+        const fimMes = `${ano}-${mm}-${String(ultimoDia).padStart(2, '0')}`;
+
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/registros_frequencia` +
+            `?usuario_id=eq.${usuarioId}&data=gte.${inicioMes}&data=lte.${fimMes}` +
+            `&select=data,entrada_manha,saida_manha,entrada_tarde,saida_tarde`;
+
+        const resposta = await fetch(url, {
+            headers: {
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+            },
+            cache: 'no-store',
+            signal: controlador.signal
+        });
+
+        if (!resposta.ok) throw new Error(`Supabase ${resposta.status}`);
+
+        const linhas = await resposta.json();
+        const dias = {};
+
+        linhas.forEach(linha => {
+            const dia = parseInt(String(linha.data).slice(8, 10), 10);
+            if (isNaN(dia)) return;
+
+            const horarios = {};
+            HORARIOS_CAMPOS_.forEach(([chave, coluna]) => {
+                horarios[chave] = horaDoSupabase_(linha[coluna]);
+            });
+
+            if (HORARIOS_CAMPOS_.some(([chave]) => horarios[chave])) {
+                dias[dia] = horarios;
+            }
+        });
+
+        return { success: true, dias };
+
+    } catch (error) {
+        const msg = error.name === 'AbortError' ? 'Tempo esgotado' : error.message;
+        console.warn('Não foi possível ler a frequência do Supabase:', msg);
+        return { success: false, error: msg };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /**
  * Substitui salvarFrequenciaAPI: grava direto no Supabase em vez de
  * chamar o Apps Script. A planilha é atualizada pelo webhook.
@@ -94,19 +231,33 @@ async function salvarFrequenciaSupabase(dados) {
         const indiceMes = CONFIG.MESES.indexOf(dados.mes);
         const dataISO = `${CONFIG.ANO_ATUAL}-${String(indiceMes + 1).padStart(2, '0')}-${String(dados.dia).padStart(2, '0')}`;
 
+        // Gravação parcial: quando "dados.somenteCampos" vem preenchido (ex:
+        // ['saidaManha'], usado pelo "Bati o Ponto"), só essas colunas vão
+        // no corpo — o upsert (merge-duplicates) NÃO mexe nas demais, então
+        // um horário já registrado nunca é apagado por engano.
+        const somenteCampos = Array.isArray(dados.somenteCampos) ? dados.somenteCampos : null;
+
         const corpo = {
             usuario_id: usuarioId,
-            data: dataISO,
-            // Sempre manda os quatro, com null pra vazio — se só omitíssemos
-            // os vazios, apagar um horário no formulário e salvar não
-            // limparia o valor antigo no Supabase (nem na planilha).
-            entrada_manha: horaParaSupabase_(formatarHora(dados.entradaManha)) || null,
-            saida_manha: horaParaSupabase_(formatarHora(dados.saidaManha)) || null,
-            entrada_tarde: horaParaSupabase_(formatarHora(dados.entradaTarde)) || null,
-            saida_tarde: horaParaSupabase_(formatarHora(dados.saidaTarde)) || null
+            data: dataISO
         };
+        const horariosGravados = {};
+
+        HORARIOS_CAMPOS_.forEach(([chave, coluna]) => {
+            if (somenteCampos && !somenteCampos.includes(chave)) return;
+            const hhmm = formatarHora(dados[chave]);
+            // Sem "somenteCampos" (botão Salvar), manda os quatro, com null
+            // pra vazio — se só omitíssemos os vazios, apagar um horário no
+            // formulário e salvar não limparia o valor antigo no Supabase
+            // (nem na planilha).
+            corpo[coluna] = horaParaSupabase_(hhmm) || null;
+            horariosGravados[chave] = hhmm || '';
+        });
 
         await chamarSupabase_('registros_frequencia', corpo, { onConflict: 'usuario_id,data' });
+
+        // Write-through: o cache local já reflete o que acabou de ser gravado
+        atualizarCacheHorariosDia_(dados.mes, parseInt(dados.dia, 10), horariosGravados, !!somenteCampos);
 
         salvarBackupLocal('frequencia', corpo);
         mostrarNotificacao(`✅ Frequência do dia ${dados.dia} salva com sucesso!`, 'success');
@@ -231,6 +382,8 @@ async function excluirFrequenciaSupabase(dados) {
             const texto = await resposta.text().catch(() => '');
             throw new Error(`Supabase ${resposta.status}: ${texto}`);
         }
+
+        atualizarCacheHorariosDia_(dados.mes, parseInt(dados.dia, 10), {}, false);
 
         return { success: true };
 
@@ -392,6 +545,8 @@ if (typeof window !== 'undefined') {
     window.resolverUsuarioIdSupabase = resolverUsuarioIdSupabase;
     window.obterUsuarioIdSupabaseAtual = obterUsuarioIdSupabaseAtual;
     window.salvarFrequenciaSupabase = salvarFrequenciaSupabase;
+    window.buscarFrequenciaMesSupabase = buscarFrequenciaMesSupabase;
+    window.lerCacheHorariosMes = lerCacheHorariosMes;
     window.salvarJustificativaSupabase = salvarJustificativaSupabase;
     window.salvarObservacaoSupabase = salvarObservacaoSupabase;
     window.excluirFrequenciaSupabase = excluirFrequenciaSupabase;
