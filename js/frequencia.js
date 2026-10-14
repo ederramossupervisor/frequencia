@@ -284,9 +284,6 @@ function resetarProgressoMes() {
  * estão contados dentro de horasEfetivasTrabalhadas/horasJustificadas,
  * que vêm prontos da planilha.
  *
- * O dia de HOJE é tratado como previsão (jornada cheia) até que os 4
- * horários do dia estejam inseridos; só então entra com as horas reais.
- *
  * Ex.: meta de 160h (20 dias úteis x 8h). Se num dos dias já registrados
  * a pessoa trabalhou 10h em vez de 8h, essas 2h a mais entram em
  * horasEfetivasTrabalhadas e a previsão sobe para 162h — sem precisar de
@@ -303,40 +300,15 @@ function calcularPrevisaoMes(mes, resumo) {
     const feriados = obterFeriadosConfigurados();
     const statusMes = (typeof obterStatusMes === 'function') ? obterStatusMes(mes) : {};
 
-    let diasSemRegistro = contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes);
+    const diasSemRegistro = contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes);
 
-    let minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas);
+    const minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas);
     // Prioriza a carga horária diária real da planilha (célula H9, "Carga
     // Horária/Dia"), que é onde a própria planilha já baseia a BASE DE
-    // HORAS A TRABALHAR NO MÊS (8h, ou 10h em alguns casos). Só cai pro
-    // valor fixo do config se, por algum motivo, a planilha não tiver
-    // retornado esse dado.
+    // HORAS A TRABALHAR NO MÊS. Só cai pro valor fixo do config se, por
+    // algum motivo, a planilha não tiver retornado esse dado.
     const minutosCargaDiaPlanilha = duracaoParaMinutos(resumo.cargaHorariaDia);
     const minutosJornadaPadrao = minutosCargaDiaPlanilha > 0 ? minutosCargaDiaPlanilha : (CONFIG.HORAS_JORNADA_PADRAO || 8) * 60;
-
-    // DIA DE HOJE: enquanto os 4 horários do dia não forem todos inseridos,
-    // o dia continua valendo a jornada inteira na previsão. Sem nenhum
-    // registro, hoje já era contado em diasSemRegistro; com registro
-    // PARCIAL (ex.: só a entrada da manhã), o dia deixaria de ser contado e
-    // a previsão despencaria. Aqui ele volta a ser contado como jornada
-    // cheia, e o que a planilha já tiver somado de hoje (total parcial) é
-    // descontado para não contar duas vezes. Quando o 4º horário entra, o
-    // dia vira "completo" e a previsão passa a usar as horas reais.
-    const hoje = new Date();
-    if (hoje.getFullYear() === ano && hoje.getMonth() === mesIndex) {
-        const diaHoje = hoje.getDate();
-        if (statusMes[diaHoje] === 'parcial' && eDiaUtil(ano, mesIndex, diaHoje, feriados)) {
-            const dadosHojePlanilha = (typeof frequenciaState !== 'undefined' && frequenciaState.diasDoMes)
-                ? frequenciaState.diasDoMes[diaHoje]
-                : null;
-            const minutosParciaisHoje = dadosHojePlanilha && dadosHojePlanilha.totalGeral
-                ? duracaoParaMinutos(String(dadosHojePlanilha.totalGeral))
-                : 0;
-            minutosResolvidos = Math.max(0, minutosResolvidos - minutosParciaisHoje);
-            diasSemRegistro += 1;
-        }
-    }
-
     const minutosPrevistos = minutosResolvidos + (diasSemRegistro * minutosJornadaPadrao);
 
     return {
@@ -365,7 +337,7 @@ function atualizarPrevisaoMes(mes, resumo) {
 
     el.textContent = `· prev. ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
     el.className = 'progresso-mes-previsao' + (previsao.minutosPrevistos < previsao.minutosBase ? ' previsao-abaixo' : ' previsao-ok');
-    el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) (incluindo hoje, se ainda incompleto) forem trabalhados na jornada padrão (${formatarMinutosCurto(previsao.minutosJornadaPadrao)}), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
+    el.title = `Se os ${previsao.diasSemRegistro} dia(s) útil(eis) restante(s) sem registro forem trabalhados na jornada padrão (${formatarMinutosCurto(previsao.minutosJornadaPadrao)}), o mês deve fechar em ${formatarMinutosCurto(previsao.minutosPrevistos)}`;
 }
 
 if (typeof window !== 'undefined') {
@@ -708,16 +680,13 @@ async function sincronizarStatusMesComPlanilha(mes) {
 
         // Só aplica se o mês ainda for o selecionado (evita corrida ao trocar rápido de mês)
         if (resultado && resultado.success && mes === frequenciaState.mesAtual) {
-            // diasDoMes precisa estar atualizado ANTES de calcular a previsão
-            // (ela usa o total parcial de hoje que a planilha já somou)
-            frequenciaState.diasDoMes = resultado.dias || {};
-
             substituirStatusMes(mes, resultado.status || {});
             atualizarIndicadoresDias();
             exibirResumoMes(resultado.resumo);
             atualizarProgressoMes(resultado.resumo);
             atualizarPrevisaoMes(mes, resultado.resumo);
 
+            frequenciaState.diasDoMes = resultado.dias || {};
             if (camposEstaoVazios()) {
                 carregarDadosDoDia(frequenciaState.diaAtual);
             } else {
