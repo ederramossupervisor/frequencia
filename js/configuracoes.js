@@ -647,11 +647,30 @@ function renderizarListaFeriados() {
     
     container.innerHTML = feriados.map(f => {
         const [ano, mes, dia] = f.data.split('-');
+        const descricao = escaparHtmlFeriado_(f.descricao || 'Feriado');
+
+        if (f.data === feriadoEmEdicao_) {
+            return `
+            <div class="feriado-item feriado-item-edicao">
+                <input type="date" class="form-control form-control-sm feriado-edit-data" value="${f.data}">
+                <input type="text" class="form-control form-control-sm feriado-edit-descricao" value="${descricao}" placeholder="Descrição">
+                <button class="feriado-salvar" data-data="${f.data}" title="Salvar">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="feriado-cancelar" title="Cancelar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+        }
+
         return `
             <div class="feriado-item">
                 <span class="feriado-data">${dia}/${mes}/${ano}</span>
-                <span class="feriado-descricao">${f.descricao || 'Feriado'}</span>
+                <span class="feriado-descricao">${descricao}</span>
                 ${podeEditar ? `
+                <button class="feriado-editar" data-data="${f.data}" title="Editar">
+                    <i class="fas fa-pen"></i>
+                </button>
                 <button class="feriado-remover" data-data="${f.data}" title="Remover">
                     <i class="fas fa-times"></i>
                 </button>` : ''}
@@ -663,6 +682,84 @@ function renderizarListaFeriados() {
         container.querySelectorAll('.feriado-remover').forEach(btn => {
             btn.addEventListener('click', () => removerFeriado(btn.dataset.data));
         });
+        container.querySelectorAll('.feriado-editar').forEach(btn => {
+            btn.addEventListener('click', () => {
+                feriadoEmEdicao_ = btn.dataset.data;
+                renderizarListaFeriados();
+            });
+        });
+        container.querySelectorAll('.feriado-cancelar').forEach(btn => {
+            btn.addEventListener('click', () => {
+                feriadoEmEdicao_ = null;
+                renderizarListaFeriados();
+            });
+        });
+        container.querySelectorAll('.feriado-salvar').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const linha = btn.closest('.feriado-item');
+                editarFeriado(
+                    btn.dataset.data,
+                    linha.querySelector('.feriado-edit-data')?.value,
+                    linha.querySelector('.feriado-edit-descricao')?.value.trim()
+                );
+            });
+        });
+    }
+}
+
+// Data (ISO) do feriado que está sendo editado na lista, ou null.
+let feriadoEmEdicao_ = null;
+
+function escaparHtmlFeriado_(texto) {
+    return String(texto)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+async function editarFeriado(dataAntiga, dataNova, descricao) {
+    if (!usuarioEhAdmin_()) return;
+
+    if (!dataNova) {
+        mostrarNotificacao('Escolha uma data', 'error');
+        return;
+    }
+
+    const atuais = obterFeriadosConfigurados();
+    if (dataNova !== dataAntiga && atuais.some(f => f.data === dataNova)) {
+        mostrarNotificacao('Essa data já está cadastrada', 'error');
+        return;
+    }
+
+    const original = atuais.find(f => f.data === dataAntiga);
+    const descFinal = descricao || 'Feriado';
+
+    // Atualiza local na hora; se a gravação falhar, desfaz logo abaixo.
+    salvarFeriadosConfigurados(atuais.map(f =>
+        f.data === dataAntiga ? { data: dataNova, descricao: descFinal } : f
+    ));
+    feriadoEmEdicao_ = null;
+    renderizarListaFeriados();
+    atualizarCalculoDiasUteis();
+
+    if (typeof editarFeriadoUsuarioAPI !== 'function') {
+        mostrarNotificacao('Feriado atualizado', 'success', 1500);
+        return;
+    }
+
+    const resultado = await editarFeriadoUsuarioAPI(dataAntiga, dataNova, descFinal);
+    if (resultado.success) {
+        mostrarNotificacao('Feriado atualizado', 'success', 1500);
+    } else {
+        if (original) {
+            salvarFeriadosConfigurados(obterFeriadosConfigurados().map(f =>
+                f.data === dataNova ? original : f
+            ));
+        }
+        renderizarListaFeriados();
+        atualizarCalculoDiasUteis();
+        mostrarNotificacao(resultado.error || 'Não foi possível salvar a alteração', 'error');
     }
 }
 
