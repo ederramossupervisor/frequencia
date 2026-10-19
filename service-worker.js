@@ -1,5 +1,5 @@
 // service-worker.js - VERSÃO ÚNICA E FUNCIONAL
-const CACHE_VERSION = 'v3.14'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
+const CACHE_VERSION = 'v3.15'; // MUDE ESTE NÚMERO SEMPRE QUE ATUALIZAR
 const CACHE_NAME = `frequencia-${CACHE_VERSION}`;
 
 self.addEventListener('install', event => {
@@ -45,8 +45,18 @@ self.addEventListener('fetch', event => {
   }
 
   // Para outros recursos, busca na rede primeiro e cai pro cache se offline
+  // Só intercepta GET. POST/PUT etc. (ex.: gravações no Supabase) vão direto pra rede.
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
+    fetch(event.request).catch(async () => {
+      const emCache = await caches.match(event.request);
+      if (emCache) return emCache;
+      // Sem rede e sem cache: devolve um erro de rede legítimo em vez de
+      // undefined (que causava "Failed to convert value to 'Response'").
+      return Response.error();
+    })
   );
 });
