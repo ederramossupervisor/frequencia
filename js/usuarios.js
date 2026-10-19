@@ -310,6 +310,16 @@ async function removerFeriadoUsuarioAPI(dataISO) {
 }
 
 /**
+ * Edita um feriado (data e/ou descrição). Mesma trava de admin.
+ */
+async function editarFeriadoUsuarioAPI(dataAntigaISO, dataNovaISO, descricao) {
+    if (typeof usuarioEhAdmin_ === 'function' && !usuarioEhAdmin_()) {
+        return { success: false, error: 'Apenas o administrador pode editar feriados' };
+    }
+    return editarFeriadoSupabase(dataAntigaISO, dataNovaISO, descricao);
+}
+
+/**
  * Busca a lista de feriados "oficial" — direto do Supabase (tabela
  * "feriados", uma lista só, não mais por pessoa). É a fonte única que
  * selecionarUsuario e sincronizarUsuarioAtual usam. Leitura aberta, sem
@@ -645,6 +655,7 @@ if (typeof window !== 'undefined') {
     window.criarUsuarioComTemplatesAPI = criarUsuarioComTemplatesAPI;
     window.adicionarFeriadoUsuarioAPI = adicionarFeriadoUsuarioAPI;
     window.removerFeriadoUsuarioAPI = removerFeriadoUsuarioAPI;
+    window.editarFeriadoUsuarioAPI = editarFeriadoUsuarioAPI;
     window.obterFeriadosGlobaisAPI = obterFeriadosGlobaisAPI;
     window.definirEmailUsuarioAPI = definirEmailUsuarioAPI;
     window.selecionarUsuario = selecionarUsuario;
