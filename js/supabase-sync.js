@@ -35,16 +35,22 @@ async function chamarSupabase_(tabela, corpo, { onConflict } = {}) {
  */
 async function resolverUsuarioIdSupabase(nome) {
     try {
-        const url = `${CONFIG.SUPABASE_URL}/rest/v1/usuarios?nome=eq.${encodeURIComponent(nome)}&select=id`;
+        // Usa a função obter_usuario_id (SECURITY DEFINER) em vez de ler a
+        // tabela "usuarios" direto: assim o app recebe só o id, sem expor
+        // e-mail, número funcional nem os hashes de PIN.
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/rpc/obter_usuario_id`;
         const resposta = await fetch(url, {
+            method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 apikey: CONFIG.SUPABASE_ANON_KEY,
                 Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
-            }
+            },
+            body: JSON.stringify({ p_nome: nome })
         });
         if (!resposta.ok) return null;
-        const linhas = await resposta.json();
-        return linhas.length ? linhas[0].id : null;
+        const id = await resposta.json();
+        return id || null;
     } catch (error) {
         console.warn('Não foi possível resolver o usuário no Supabase:', error.message);
         return null;
