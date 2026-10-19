@@ -235,6 +235,24 @@ function formatarMinutosCurto(minutos) {
 }
 
 /**
+ * Horas compensadas no mês (motivo 60). A planilha não manda esse total
+ * pronto, mas ele fecha a conta do "A Repor":
+ *   A Repor = base - trabalhadas - justificadas - compensadas
+ * então, enquanto houver "A Repor" (> 0), dá pra recuperar as compensadas
+ * por diferença. Sem "A Repor" a conta não fecha (o saldo some no zero),
+ * então devolve 0 — mesmo comportamento de antes.
+ */
+function derivarMinutosCompensados_(resumo) {
+    const base = duracaoParaMinutos(resumo.baseHorasMes);
+    const repor = duracaoParaMinutos(resumo.saldoAcumuladoRepor);
+    if (base <= 0 || repor <= 0) return 0;
+
+    const trabalhadas = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas);
+    const justificadas = duracaoParaMinutos(resumo.horasJustificadas);
+    return Math.max(0, base - trabalhadas - justificadas - repor);
+}
+
+/**
  * Atualiza a barrinha de progresso do mês (logo abaixo das abas) com base
  * em quanto da carga horária do mês já está "resolvido" — horas
  * efetivamente trabalhadas MAIS horas já justificadas (férias, viagem,
@@ -255,7 +273,7 @@ function atualizarProgressoMes(resumo) {
 
     const minutosTrabalhados = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas);
     const minutosJustificados = duracaoParaMinutos(resumo.horasJustificadas);
-    const minutosResolvidos = minutosTrabalhados + minutosJustificados;
+    const minutosResolvidos = minutosTrabalhados + minutosJustificados + derivarMinutosCompensados_(resumo);
 
     const percentual = Math.min(100, (minutosResolvidos / minutosBase) * 100);
 
@@ -302,7 +320,7 @@ function calcularPrevisaoMes(mes, resumo) {
 
     const diasSemRegistro = contarDiasUteisSemRegistro(ano, mesIndex, feriados, statusMes);
 
-    const minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas);
+    const minutosResolvidos = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas) + duracaoParaMinutos(resumo.horasJustificadas) + derivarMinutosCompensados_(resumo);
     // Prioriza a carga horária diária real da planilha (célula H9, "Carga
     // Horária/Dia"), que é onde a própria planilha já baseia a BASE DE
     // HORAS A TRABALHAR NO MÊS. Só cai pro valor fixo do config se, por
