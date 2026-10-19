@@ -361,34 +361,37 @@ function exibirResumoMes(resumo) {
     const trabalhadasMin = duracaoParaMinutos(resumo.horasEfetivasTrabalhadas);
     const justificadasMin = duracaoParaMinutos(resumo.horasJustificadas);
 
-    // Calcula a previsão de variação (saldo previsto - base)
-    let saldoPrevistoMin = 0;
+    // Previsão: parte do "A Repor" que a própria planilha já calculou
+    // (base do mês inteiro - trabalhadas - justificadas - compensadas) e
+    // abate o que ainda vai ser trabalhado nos dias úteis sem registro.
+    // Assim as horas compensadas já entram na conta e nada é contado duas
+    // vezes. Resultado > 0: ainda deve; < 0: vai sobrar (a compensar).
+    let reporPrevistoMin = null;
     const mes = frequenciaState.mesAtual;
     const previsao = calcularPrevisaoMes(mes, resumo);
-    if (previsao && previsao.minutosBase > 0) {
-        saldoPrevistoMin = previsao.minutosPrevistos - previsao.minutosBase;
+    if (previsao && previsao.minutosBase > 0 && previsao.diasSemRegistro > 0) {
+        reporPrevistoMin = reporMin - (previsao.diasSemRegistro * previsao.minutosJornadaPadrao);
     }
 
-    // Badges de previsão (só aparecem se houver variação prevista)
+    // Badges de previsão (só aparecem quando há dias restantes a prever)
     let badgeCompensar = '';
     let badgeRepor = '';
 
-    if (saldoPrevistoMin > 0) {
-        // Previsão de horas extras → badge em "A Compensar"
-        const totalPrevistoCompensar = compensarMin + saldoPrevistoMin;
+    if (reporPrevistoMin !== null && reporPrevistoMin < 0) {
+        // Previsão de sobra → badge em "A Compensar"
+        const totalPrevistoCompensar = compensarMin + Math.abs(reporPrevistoMin);
         badgeCompensar = `
             <span class="saldo-previsao-badge badge-compensar" 
-                  title="Previsão de horas a compensar: +${formatarMinutosCurto(saldoPrevistoMin)}">
+                  title="Previsão se os dias restantes forem trabalhados na jornada padrão: +${formatarMinutosCurto(Math.abs(reporPrevistoMin))} a compensar">
                 ${formatarMinutosCurto(totalPrevistoCompensar)}
             </span>
         `;
-    } else if (saldoPrevistoMin < 0) {
+    } else if (reporPrevistoMin !== null && reporPrevistoMin > 0) {
         // Previsão de débito → badge em "A Repor"
-        const totalPrevistoRepor = reporMin + Math.abs(saldoPrevistoMin);
         badgeRepor = `
             <span class="saldo-previsao-badge badge-repor" 
-                  title="Previsão de horas a repor: -${formatarMinutosCurto(Math.abs(saldoPrevistoMin))}">
-                ${formatarMinutosCurto(totalPrevistoRepor)}
+                  title="Previsão se os dias restantes forem trabalhados na jornada padrão: ainda faltariam ${formatarMinutosCurto(reporPrevistoMin)} a repor">
+                ${formatarMinutosCurto(reporPrevistoMin)}
             </span>
         `;
     }
