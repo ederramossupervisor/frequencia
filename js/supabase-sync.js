@@ -547,6 +547,51 @@ async function removerFeriadoSupabase(dataISO) {
     }
 }
 
+/**
+ * Edita um feriado: troca a data e/ou a descrição. A data é a chave
+ * primária da tabela, então o PATCH localiza pela data antiga e grava a
+ * nova (se a nova já existir, o Supabase devolve 409 e nada muda).
+ */
+async function editarFeriadoSupabase(dataAntigaISO, dataNovaISO, descricao) {
+    try {
+        if (!dataAntigaISO || !dataNovaISO) throw new Error('Data é obrigatória');
+
+        const url = `${CONFIG.SUPABASE_URL}/rest/v1/feriados?data=eq.${dataAntigaISO}`;
+        const resposta = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                apikey: CONFIG.SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+                Prefer: 'return=representation'
+            },
+            body: JSON.stringify({
+                data: dataNovaISO,
+                descricao: descricao || 'Feriado'
+            })
+        });
+
+        if (resposta.status === 409) {
+            throw new Error('Já existe um feriado nessa data');
+        }
+        if (!resposta.ok) {
+            const texto = await resposta.text().catch(() => '');
+            throw new Error(`Supabase ${resposta.status}: ${texto}`);
+        }
+
+        const linhas = await resposta.json().catch(() => []);
+        if (!Array.isArray(linhas) || linhas.length === 0) {
+            throw new Error('Feriado não encontrado (talvez já tenha sido alterado em outro aparelho)');
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('Erro ao editar feriado no Supabase:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 if (typeof window !== 'undefined') {
     window.resolverUsuarioIdSupabase = resolverUsuarioIdSupabase;
     window.obterUsuarioIdSupabaseAtual = obterUsuarioIdSupabaseAtual;
@@ -561,4 +606,5 @@ if (typeof window !== 'undefined') {
     window.listarFeriadosSupabase = listarFeriadosSupabase;
     window.adicionarFeriadoSupabase = adicionarFeriadoSupabase;
     window.removerFeriadoSupabase = removerFeriadoSupabase;
+    window.editarFeriadoSupabase = editarFeriadoSupabase;
 }
