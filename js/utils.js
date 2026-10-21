@@ -682,6 +682,7 @@ function inicializarCamposHora() {
             campoTexto.placeholder = campoTime.value || '08:00';
             campoTexto.value = campoTime.value || '08:00';
             campoTexto.maxLength = 5;
+            campoTexto.inputMode = 'numeric';
             campoTexto.oninput = function() { formatarHoraInput(this); };
             
             campoTime.parentNode.insertBefore(campoTexto, campoTime);
@@ -733,6 +734,8 @@ function criarCampoTextoMobile(campoTime) {
     campoTexto.value = campoTime.value || '';
     campoTexto.placeholder = 'HH:MM';
     campoTexto.maxLength = 5;
+    campoTexto.inputMode = 'numeric';
+    campoTexto.setAttribute('autocomplete', 'off');
     
     campoTexto.addEventListener('input', function(e) {
         formatarHoraInputMobile(this);
@@ -1106,6 +1109,21 @@ if (typeof window !== 'undefined') {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(inicializarCamposHora, 100);
     setTimeout(criarCamposHoraMobile, 500);
+    
+    // Os formulários são desenhados dinamicamente (innerHTML) DEPOIS do
+    // carregamento — no iOS isso costuma acontecer depois dos timers acima.
+    // O observer cria os campos de hora assim que eles aparecem no DOM.
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+        let agendado = false;
+        new MutationObserver(function() {
+            if (agendado) return;
+            agendado = true;
+            requestAnimationFrame(function() {
+                agendado = false;
+                criarCamposHoraMobile();
+            });
+        }).observe(document.body, { childList: true, subtree: true });
+    }
     
     document.addEventListener('click', function(e) {
         if (e.target.closest('.tab-btn')) {
