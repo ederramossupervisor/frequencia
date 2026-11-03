@@ -49,18 +49,20 @@ async function buscarGidsPdfAPI(sheetIdFrequencia, sheetIdAcompanhamento, mes, p
  *
  * @param {string} sheetId
  * @param {number|string} gid
- * @param {boolean} caberNaPagina - Se true, ajusta LARGURA e ALTURA (fitw +
- *   fith) para a aba inteira caber numa única página A4, encolhendo o
- *   conteúdo se precisar. Se false, ajusta só a largura (comportamento
- *   antigo) — o conteúdo pode continuar em várias páginas na vertical.
+ * @param {boolean} caberNaPagina - Se true, encaixa a aba inteira numa única
+ *   página A4 (scale=4 do Google Sheets: "ajustar à página", largura E
+ *   altura). Se false, ajusta só a largura (fitw) — o conteúdo pode
+ *   continuar em várias páginas na vertical.
+ * @param {string} [intervalo] - Intervalo exato a imprimir (ex.: "A1:G52"),
+ *   enviado pelo Apps Script. Evita que colunas/linhas "usadas" fora da
+ *   ficha encolham o conteúdo. Opcional.
  */
-function montarUrlExportarPdf(sheetId, gid, caberNaPagina) {
+function montarUrlExportarPdf(sheetId, gid, caberNaPagina, intervalo) {
     const params = new URLSearchParams({
         format: 'pdf',
         gid: String(gid),
         size: 'A4',
         portrait: 'true',
-        fitw: 'true',
         top_margin: '0.4',
         bottom_margin: '0.4',
         left_margin: '0.4',
@@ -74,7 +76,12 @@ function montarUrlExportarPdf(sheetId, gid, caberNaPagina) {
         fzr: 'false'
     });
     if (caberNaPagina) {
-        params.set('fith', 'true');
+        params.set('scale', '4');
+    } else {
+        params.set('fitw', 'true');
+    }
+    if (intervalo) {
+        params.set('range', intervalo);
     }
     return `https://docs.google.com/spreadsheets/d/${sheetId}/export?${params.toString()}`;
 }
@@ -162,8 +169,15 @@ async function imprimirMesPDF(tipo) {
 
         if (janelaAcompanhamento) {
             if (resultado.gidAcompanhamento !== undefined) {
-                // true = ajusta largura E altura, pra aba inteira caber numa única página A4
-                janelaAcompanhamento.location.href = montarUrlExportarPdf(config.sheetIdAcompanhamento, resultado.gidAcompanhamento, true);
+                // true = encaixa a aba inteira numa única página A4 (scale=4).
+                // intervaloAcompanhamento (ex.: "A1:G52") vem do Apps Script e
+                // limita a impressão à área real da ficha.
+                janelaAcompanhamento.location.href = montarUrlExportarPdf(
+                    config.sheetIdAcompanhamento,
+                    resultado.gidAcompanhamento,
+                    true,
+                    resultado.intervaloAcompanhamento
+                );
                 algumaAbriu = true;
             } else {
                 janelaAcompanhamento.close();
